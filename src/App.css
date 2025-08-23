@@ -1,0 +1,126 @@
+.app {
+  display: flex;
+  height: 100vh;
+  overflow: hidden;
+}
+
+.map-container {
+  flex: 1;
+  position: relative;
+}
+
+/* 地图容器样式 */
+.leaflet-container {
+  height: 100vh !important;
+  width: 100% !important;
+}
+
+/* 自定义右侧缩放控件 */
+.custom-zoom-control {
+  position: absolute;
+  top: 20px;
+  right: 20px;
+  z-index: 1000;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.zoom-btn {
+  width: 36px;
+  height: 36px;
+  background: white;
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 18px;
+  font-weight: 600;
+  color: #374151;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  transition: all 0.2s ease;
+  user-select: none;
+}
+
+.zoom-btn:hover {
+  background: #f8fafc;
+  border-color: #9ca3af;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  transform: translateY(-1px);
+}
+
+.zoom-btn:active {
+  transform: translateY(0);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.zoom-in {
+  border-radius: 6px 6px 0 0;
+}
+
+.zoom-out {
+  border-radius: 0 0 6px 6px;
+}
+
+/* 自定义弹窗样式 */
+.custom-popup {
+  text-align: center;
+  padding: 8px;
+}
+
+.custom-popup h3 {
+  margin: 0 0 8px 0;
+  font-size: 16px;
+  color: #1f2937;
+}
+
+.custom-popup p {
+  margin: 4px 0;
+  font-size: 14px;
+  color: #4b5563;
+}
+
+.btn-primary {
+  background: #667eea;
+  color: white;
+  border: none;
+  padding: 8px 16px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 14px;
+  margin-top: 8px;
+  transition: background-color 0.2s;
+}
+
+.btn-primary:hover {
+  background: #5a67d8;
+}
+
+/* 响应式设计 */
+@media (max-width: 768px) {
+  .app {
+    flex-direction: column;
+  }
+  
+  .map-container {
+    height: 60vh;
+  }
+  
+  .leaflet-container {
+    height: 60vh !important;
+  }
+  
+  /* 移动端缩放控件调整 */
+  .custom-zoom-control {
+    top: 15px;
+    right: 15px;
+  }
+  
+  .zoom-btn {
+    width: 32px;
+    height: 32px;
+    font-size: 16px;
+  }
+}
