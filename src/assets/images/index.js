@@ -138,7 +138,7 @@ export const destinationImages = {
   iceland: iceland,
   
   // 威尼斯 - 贡多拉和运河（使用巴塞罗那图片作为替代）
-  venice: barcelona,
+  venice: venice,
   
   // 巴厘岛 - 梯田和寺庙
   bali: bali,
@@ -147,7 +147,7 @@ export const destinationImages = {
   swissAlps: swissAlps,
   
   // 摩洛哥 - 撒哈拉沙漠和蓝色小镇（使用巴塞罗那图片作为替代）
-  morocco: barcelona,
+  morocco: morocco,
   
   // 新西兰 - 米尔福德峡湾
   newzealand: newzealand,
@@ -159,10 +159,10 @@ export const destinationImages = {
   singapore: singapore,
   
   // 曼谷 - 大皇宫和寺庙（使用巴塞罗那图片作为替代）
-  bangkok: barcelona,
+  bangkok: bangkok,
   
   // 首尔 - 景福宫和现代建筑（使用巴塞罗那图片作为替代）
-  seoul: barcelona,
+  seoul: seoul,
   
   // 台北 - 101大楼和夜市
   taipei: taipei,
@@ -195,10 +195,10 @@ export const destinationImages = {
   barcelona: barcelona,
   
   // 阿姆斯特丹 - 运河和风车（使用巴塞罗那图片作为替代）
-  amsterdam: barcelona,
+  amsterdam: amsterdam,
   
   // 布拉格 - 查理大桥和城堡（使用巴塞罗那图片作为替代）
-  prague: barcelona,
+  prague: prague,
   
   // 纽约 - 自由女神和时代广场
   newyork: newyork,
@@ -210,7 +210,7 @@ export const destinationImages = {
   vancouver: vancouver,
   
   // 里约热内卢 - 基督像和科帕卡巴纳海滩（使用巴塞罗那图片作为替代）
-  rio: barcelona,
+  rio: rio,
   
   // 悉尼 - 悉尼歌剧院
   sydney: sydney,

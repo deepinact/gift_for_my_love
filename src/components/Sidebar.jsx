@@ -22,6 +22,18 @@ const Sidebar = ({
   const [isCollapsed, setIsCollapsed] = useState(false)
   const itemsPerPage = 10
 
+  // 获取类别表情符号的函数
+  const getCategoryEmoji = (category) => {
+    const emojiMap = {
+      '现代都市': '🏙️',
+      '浪漫城市': '💝',
+      '艺术建筑': '🎨',
+      '自然风光': '🌿',
+      '徒步路线': '🥾'
+    }
+    return emojiMap[category] || '📍'
+  }
+
   // 使用useMemo优化目的地列表渲染
   const destinationsList = useMemo(() => {
     const startIndex = (currentPage - 1) * itemsPerPage
@@ -150,20 +162,17 @@ const Sidebar = ({
               className="category-select"
             >
               <option value="全部">🌍 全部分类</option>
-              <option value="海岛度假">🏝️ 海岛度假</option>
-              <option value="浪漫海岛">💕 浪漫海岛</option>
-              <option value="文化古迹">🏛️ 文化古迹</option>
-              <option value="自然奇观">🌋 自然奇观</option>
-              <option value="浪漫水城">🚣 浪漫水城</option>
-              <option value="热带度假">🌴 热带度假</option>
-              <option value="山地风光">⛰️ 山地风光</option>
-              <option value="异域风情">🕌 异域风情</option>
-              <option value="自然风光">🌿 自然风光</option>
-              <option value="奇特地貌">🏔️ 奇特地貌</option>
-              <option value="现代都市">🏙️ 现代都市</option>
-              <option value="浪漫城市">💝 浪漫城市</option>
-              <option value="艺术建筑">🎨 艺术建筑</option>
-              <option value="徒步路线">🥾 徒步路线</option>
+              {categories.filter(cat => cat !== '全部').map(category => {
+                const categoryCount = allDestinations.filter(dest => dest.category === category).length
+                if (categoryCount > 0) {
+                  return (
+                    <option key={category} value={category}>
+                      {getCategoryEmoji(category)} {category} ({categoryCount})
+                    </option>
+                  )
+                }
+                return null
+              })}
             </select>
           </div>
         </div>
