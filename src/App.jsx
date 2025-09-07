@@ -4,6 +4,7 @@ import { Icon } from 'leaflet'
 import { destinations, categories } from './data/destinations'
 import Sidebar from './components/Sidebar'
 import DestinationModal from './components/DestinationModal'
+import MusicPlayer from './components/MusicPlayer'
 import './App.css'
 
 // 自定义缩放控件组件
@@ -252,6 +253,9 @@ function App() {
           onUpdate={handleUpdateDestination}
         />
       )}
+
+      {/* 音乐播放器 - 自动循环播放 */}
+      <MusicPlayer />
     </div>
   )
 }
