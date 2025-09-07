@@ -15,20 +15,24 @@
 您的音乐文件 `Omnipotent_Youth_Society_2020.mp3` 已经配置为优先播放！
 
 ### 方法2：添加其他格式
-您可以在 `/public/music/` 目录中放置以下格式：
-- `Omnipotent_Youth_Society_2020.mp3` (当前使用)
-- `background-music.mp4`
-- `background-music.mp3`
-- `background-music.wav`
-- `background-music.ogg`
+您可以在以下位置放置音乐文件：
+- `src/assets/music/Omnipotent_Youth_Society_2020.mp3` (当前使用)
+- `public/music/background-music.mp4` (备用)
+- `public/music/background-music.mp3` (备用)
+- `public/music/background-music.wav` (备用)
+- `public/music/background-music.ogg` (备用)
 
 播放器会按优先级自动选择可用的格式。
 
 ## 文件路径结构
 ```
+src/
+└── assets/
+    └── music/
+        └── Omnipotent_Youth_Society_2020.mp3  ← 当前使用的音乐文件
+
 public/
 └── music/
-    ├── Omnipotent_Youth_Society_2020.mp3  ← 当前使用的音乐文件
     ├── background-music.mp4  ← 可选：MP4格式
     ├── background-music.mp3  ← 可选：MP3格式
     ├── background-music.wav  ← 可选：WAV格式
@@ -53,6 +57,8 @@ public/
 - 智能自动播放（处理浏览器限制）
 - 自动循环播放逻辑
 - 简洁的圆形控制按钮
+- 主要音乐文件通过ES6 import导入（src/assets/music/）
+- 备用音乐文件通过URL访问（public/music/）
 
 ## 注意事项
 

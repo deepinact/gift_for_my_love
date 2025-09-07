@@ -1,5 +1,7 @@
 import React, { useRef, useEffect, useState } from 'react'
 import { Play, Pause } from 'lucide-react'
+// 导入音乐文件
+import musicFile from '../assets/music/Omnipotent_Youth_Society_2020.mp3'
 
 const MusicPlayer = () => {
   const audioRef = useRef(null)
@@ -8,7 +10,7 @@ const MusicPlayer = () => {
 
   // 支持的音乐文件列表 - 按优先级排序
   const musicFiles = [
-    '/music/Omnipotent_Youth_Society_2020.mp3',
+    musicFile, // 使用导入的音乐文件
     '/music/background-music.mp4',
     '/music/background-music.mp3',
     '/music/background-music.wav',
