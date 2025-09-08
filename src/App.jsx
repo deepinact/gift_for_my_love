@@ -3,6 +3,7 @@ import { MapContainer, TileLayer, Marker, Popup, useMap } from 'react-leaflet'
 import { Icon } from 'leaflet'
 import { destinations, categories } from './data/destinations'
 import Sidebar from './components/Sidebar'
+import AddDestinationModal from './components/AddDestinationModal'
 import DestinationModal from './components/DestinationModal'
 import MusicPlayer from './components/MusicPlayer'
 import './App.css'
@@ -62,6 +63,7 @@ function App() {
   const [searchTerm, setSearchTerm] = useState('')
   const [showVisited, setShowVisited] = useState(false)
   const [showWishlist, setShowWishlist] = useState(false)
+  const [showAddModal, setShowAddModal] = useState(false)
 
   // 使用useMemo优化过滤逻辑
   const filteredDestinationsMemo = useMemo(() => {
@@ -119,12 +121,45 @@ function App() {
     setShowModal(false)
   }, [])
 
+  // 新增目的地
+  const handleAddDestination = useCallback((payload) => {
+    const nextId = Math.max(...destinationsData.map(d => d.id), 0) + 1
+    const newDestination = {
+      id: nextId,
+      ...payload
+    }
+    setDestinationsData(prev => [newDestination, ...prev])
+    // 持久化（简单本地备份）
+    try {
+      const saved = JSON.parse(localStorage.getItem('custom_destinations') || '[]')
+      localStorage.setItem('custom_destinations', JSON.stringify([newDestination, ...saved]))
+    } catch {}
+    setShowAddModal(false)
+    setSelectedDestination(newDestination)
+    setShowModal(true)
+  }, [destinationsData])
+
   // 使用useMemo优化统计数据
   const stats = useMemo(() => {
     const visitedCount = destinationsData.filter(dest => dest.visited).length
     const wishlistCount = destinationsData.filter(dest => dest.wishlist).length
     return { visitedCount, wishlistCount }
   }, [destinationsData])
+
+  // 初次加载合并自定义目的地
+  useEffect(() => {
+    try {
+      const saved = JSON.parse(localStorage.getItem('custom_destinations') || '[]')
+      if (Array.isArray(saved) && saved.length) {
+        // 去重合并（按 id）
+        setDestinationsData(prev => {
+          const existingIds = new Set(prev.map(d => d.id))
+          const toAdd = saved.filter(d => !existingIds.has(d.id))
+          return [...prev, ...toAdd]
+        })
+      }
+    } catch {}
+  }, [])
 
   // 简化的弹窗内容
   const renderPopupContent = useCallback((destination) => (
@@ -158,6 +193,7 @@ function App() {
         visitedCount={stats.visitedCount}
         wishlistCount={stats.wishlistCount}
         onDestinationClick={handleSidebarDestinationClick}
+        onAddDestination={() => setShowAddModal(true)}
       />
 
       <div className="map-container">
@@ -251,6 +287,14 @@ function App() {
           destination={selectedDestination}
           onClose={() => setShowModal(false)}
           onUpdate={handleUpdateDestination}
+        />
+      )}
+
+      {showAddModal && (
+        <AddDestinationModal 
+          categories={categories}
+          onClose={() => setShowAddModal(false)}
+          onSubmit={handleAddDestination}
         />
       )}
 

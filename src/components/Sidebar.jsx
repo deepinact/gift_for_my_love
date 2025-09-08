@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from 'react'
-import { Search, MapPin, Heart, CheckCircle, Filter, Globe, ChevronLeft, ChevronRight, Menu, X } from 'lucide-react'
+import { Search, MapPin, Heart, CheckCircle, Filter, Globe, ChevronLeft, ChevronRight, Menu, X, Plus } from 'lucide-react'
 import './Sidebar.css'
 
 const Sidebar = ({
@@ -16,10 +16,11 @@ const Sidebar = ({
   setShowWishlist,
   visitedCount,
   wishlistCount,
-  onDestinationClick
+  onDestinationClick,
+  onAddDestination
 }) => {
   const [currentPage, setCurrentPage] = useState(1)
-  const [isCollapsed, setIsCollapsed] = useState(false)
+  const [isCollapsed, setIsCollapsed] = useState(typeof window !== 'undefined' ? window.innerWidth < 768 : false)
   const itemsPerPage = 10
 
   // 获取类别表情符号的函数
@@ -61,6 +62,17 @@ const Sidebar = ({
   React.useEffect(() => {
     setCurrentPage(1)
   }, [selectedCategory, searchTerm, showVisited, showWishlist])
+
+  // 小屏默认折叠，并在尺寸变化时同步
+  React.useEffect(() => {
+    const onResize = () => {
+      if (window.innerWidth < 768) {
+        setIsCollapsed(true)
+      }
+    }
+    window.addEventListener('resize', onResize)
+    return () => window.removeEventListener('resize', onResize)
+  }, [])
 
   // 处理目的地点击
   const handleDestinationClick = (destination) => {
@@ -181,6 +193,16 @@ const Sidebar = ({
           <div className="list-header">
             <h3><MapPin className="list-icon" /> 目的地列表</h3>
             <span className="list-count">共 {allDestinations.length} 个目的地</span>
+            {onAddDestination && (
+              <button 
+                className="btn-primary" 
+                onClick={onAddDestination}
+                title="新增目的地"
+                style={{ marginLeft: 'auto' }}
+              >
+                <Plus size={16} /> 新增
+              </button>
+            )}
           </div>
           
           <div className="destinations-list-single">
