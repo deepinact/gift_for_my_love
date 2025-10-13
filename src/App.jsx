@@ -167,7 +167,10 @@ function App() {
       <h3>{destination.name}</h3>
       <p><strong>国家:</strong> {destination.country}</p>
       <p><strong>类型:</strong> {destination.category}</p>
-      <button 
+      {destination.bestTime && (
+        <p><strong>最佳时间:</strong> {destination.bestTime}</p>
+      )}
+      <button
         className="btn-primary"
         onClick={() => handleMarkerClick(destination)}
       >
@@ -198,9 +201,9 @@ function App() {
 
       <div className="map-container">
         <MapContainer
+          className="map-canvas"
           center={[20, 0]}
           zoom={2}
-          style={{ height: '100vh', width: '100%' }}
           // 适中的性能优化
           preferCanvas={true}
           zoomControl={false} // 禁用默认的左上角缩放控件
@@ -264,19 +267,7 @@ function App() {
                 click: () => handleMarkerClick(destination)
               }}
             >
-              <Popup>
-                <div className="custom-popup">
-                  <h3>{destination.name}</h3>
-                  <p><strong>国家:</strong> {destination.country}</p>
-                  <p><strong>类型:</strong> {destination.category}</p>
-                  <button 
-                    className="btn-primary"
-                    onClick={() => handleMarkerClick(destination)}
-                  >
-                    查看详情
-                  </button>
-                </div>
-              </Popup>
+              <Popup>{renderPopupContent(destination)}</Popup>
             </Marker>
           ))}
         </MapContainer>
