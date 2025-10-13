@@ -132,32 +132,36 @@ const MusicPlayer = () => {
       </div>
       
       {/* 协调的播放控制按钮 - 位于右下角 */}
-      <div style={{
-        position: 'fixed',
-        bottom: '30px',
-        right: '30px',
-        zIndex: 1000,
-        display: 'flex',
-        flexDirection: 'column',
-        alignItems: 'center',
-        gap: '8px'
-      }}>
+      <div
+        style={{
+          position: 'fixed',
+          bottom: '30px',
+          right: '30px',
+          zIndex: 1000,
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          gap: '10px'
+        }}
+      >
         <button
           onClick={togglePlayPause}
           style={{
-            width: '50px',
-            height: '50px',
-            borderRadius: '50%',
-            border: '1px solid #d1d5db',
-            background: isPlaying 
-              ? 'rgba(107, 114, 128, 0.9)' 
-              : 'rgba(255, 255, 255, 0.9)',
-            color: isPlaying ? 'white' : '#374151',
+            width: '56px',
+            height: '56px',
+            borderRadius: '18px',
+            border: '1px solid rgba(148, 163, 184, 0.35)',
+            background: isPlaying
+              ? 'linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%)'
+              : 'rgba(248, 250, 252, 0.9)',
+            color: isPlaying ? 'white' : '#1f2937',
             cursor: 'pointer',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            boxShadow: '0 2px 8px rgba(0, 0, 0, 0.1)',
+            boxShadow: isPlaying
+              ? '0 18px 36px rgba(99, 102, 241, 0.35)'
+              : '0 16px 32px rgba(15, 23, 42, 0.18)',
             transition: 'all 0.2s ease',
             fontSize: '18px',
             backdropFilter: 'blur(10px)',
@@ -165,13 +169,17 @@ const MusicPlayer = () => {
           }}
           onMouseEnter={(e) => {
             e.target.style.transform = 'scale(1.05)'
-            e.target.style.boxShadow = '0 4px 12px rgba(0, 0, 0, 0.15)'
-            e.target.style.borderColor = '#9ca3af'
+            e.target.style.boxShadow = isPlaying
+              ? '0 22px 42px rgba(99, 102, 241, 0.4)'
+              : '0 20px 36px rgba(15, 23, 42, 0.24)'
+            e.target.style.borderColor = 'rgba(99, 102, 241, 0.45)'
           }}
           onMouseLeave={(e) => {
             e.target.style.transform = 'scale(1)'
-            e.target.style.boxShadow = '0 2px 8px rgba(0, 0, 0, 0.1)'
-            e.target.style.borderColor = '#d1d5db'
+            e.target.style.boxShadow = isPlaying
+              ? '0 18px 36px rgba(99, 102, 241, 0.35)'
+              : '0 16px 32px rgba(15, 23, 42, 0.18)'
+            e.target.style.borderColor = 'rgba(148, 163, 184, 0.35)'
           }}
           onMouseDown={(e) => {
             e.target.style.transform = 'scale(0.95)'
@@ -186,19 +194,22 @@ const MusicPlayer = () => {
         
         {/* 简洁的提示文字 */}
         {!isPlaying && (
-          <div style={{
-            background: 'rgba(255, 255, 255, 0.9)',
-            color: '#6b7280',
-            padding: '4px 8px',
-            borderRadius: '12px',
-            fontSize: '11px',
-            fontWeight: '500',
-            backdropFilter: 'blur(10px)',
-            WebkitBackdropFilter: 'blur(10px)',
-            border: '1px solid #e5e7eb',
-            boxShadow: '0 1px 3px rgba(0, 0, 0, 0.1)',
-            animation: 'fadeInOut 3s ease-in-out infinite'
-          }}>
+          <div
+            style={{
+              background: 'rgba(15, 23, 42, 0.72)',
+              color: 'white',
+              padding: '6px 12px',
+              borderRadius: '14px',
+              fontSize: '11px',
+              fontWeight: '500',
+              letterSpacing: '0.04em',
+              backdropFilter: 'blur(10px)',
+              WebkitBackdropFilter: 'blur(10px)',
+              border: '1px solid rgba(148, 163, 184, 0.35)',
+              boxShadow: '0 16px 32px rgba(15, 23, 42, 0.22)',
+              animation: 'fadeInOut 3s ease-in-out infinite'
+            }}
+          >
             播放音乐
           </div>
         )}
