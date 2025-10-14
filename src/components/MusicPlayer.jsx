@@ -7,6 +7,7 @@ const MusicPlayer = () => {
   const audioRef = useRef(null)
   const [isPlaying, setIsPlaying] = useState(false)
   const [hasUserInteracted, setHasUserInteracted] = useState(false)
+  const [isMobile, setIsMobile] = useState(false)
 
   // 支持的音乐文件列表 - 按优先级排序
   const musicFiles = [
@@ -118,6 +119,23 @@ const MusicPlayer = () => {
       }
     }
   }, [hasUserInteracted])
+
+  useEffect(() => {
+    const updateIsMobile = () => {
+      if (typeof window !== 'undefined') {
+        setIsMobile(window.matchMedia('(max-width: 768px)').matches)
+      }
+    }
+
+    updateIsMobile()
+
+    if (typeof window !== 'undefined') {
+      window.addEventListener('resize', updateIsMobile)
+      return () => window.removeEventListener('resize', updateIsMobile)
+    }
+
+    return undefined
+  }, [])
 
   return (
     <>

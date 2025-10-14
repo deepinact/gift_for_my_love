@@ -103,6 +103,8 @@
 @media (max-width: 768px) {
   .app {
     flex-direction: column;
+    padding-top: 72px;
+    gap: 24px;
   }
 
   .map-container {
