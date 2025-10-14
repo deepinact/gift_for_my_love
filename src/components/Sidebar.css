@@ -473,17 +473,10 @@
 /* 响应式设计 */
 @media (max-width: 768px) {
   .sidebar-toggle {
-    top: max(env(safe-area-inset-top), 16px);
-    right: 16px;
-    left: auto;
+    top: 16px;
+    left: 16px;
     width: 48px;
     height: 48px;
-    box-shadow: 0 14px 28px rgba(79, 70, 229, 0.28);
-  }
-
-  .sidebar-toggle.collapsed {
-    right: 16px;
-    left: auto;
   }
 
   .sidebar {
@@ -575,6 +568,12 @@
 
   .pagination {
     margin: 16px 0;
+  }
+}
+
+@media (max-width: 1200px) {
+  .sidebar {
+    width: 300px;
   }
 }
 
