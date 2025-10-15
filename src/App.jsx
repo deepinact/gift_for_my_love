@@ -790,143 +790,145 @@ function App() {
       />
 
       <div className="map-container">
-        <div className="map-stage">
-          <MapContainer
-            className="map-canvas"
-            center={[20, 0]}
-            zoom={2}
-            // 适中的性能优化
-            preferCanvas={true}
-            zoomControl={false} // 禁用默认的左上角缩放控件
-            attributionControl={false}
-            doubleClickZoom={false}
-            boxZoom={false}
-            keyboard={false}
-            wheelPxPerZoomLevel={120}
-            touchZoom={true}
-            fadeAnimation={false}
-            zoomAnimation={false}
-          >
-            {/* 自定义右侧缩放控件 */}
-            <CustomZoomControl />
-            {/* 主要地图源 */}
-            <TileLayer
-              url="https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png"
-              attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
-              maxZoom={14}
-              minZoom={2}
-              updateWhenZooming={false}
-              updateWhenIdle={true}
-              tileSize={256}
-              keepBuffer={2}
-            />
-
-            {/* 备用地图源1 - 如果主要源失败 */}
-            <TileLayer
-              url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-              attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
-              maxZoom={14}
-              minZoom={2}
-              updateWhenZooming={false}
-              updateWhenIdle={true}
-              tileSize={256}
-              keepBuffer={2}
-              opacity={0.8}
-              zIndex={-1}
-            />
-
-            {/* 备用地图源2 - 最轻量 */}
-            <TileLayer
-              url="https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png"
-              attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
-              maxZoom={12}
-              minZoom={2}
-              updateWhenZooming={false}
-              updateWhenIdle={true}
-              tileSize={256}
-              keepBuffer={1}
-              opacity={0.6}
-              zIndex={-2}
-            />
-
-            {filteredDestinationsMemo.map(destination => (
-              <Marker
-                key={destination.id}
-                position={destination.coordinates}
-                icon={destination.visited ? visitedIcon : customIcon}
-                eventHandlers={{
-                  click: () => handleMarkerClick(destination)
-                }}
-              >
-                <Popup>{renderPopupContent(destination)}</Popup>
-              </Marker>
-            ))}
-
-            {visitedPath.length > 1 && (
-              <Polyline
-                positions={visitedPath}
-                pathOptions={{
-                  color: '#f472b6',
-                  weight: 3,
-                  opacity: 0.8,
-                  dashArray: '12 12',
-                  lineCap: 'round',
-                  lineJoin: 'round'
-                }}
+        <div className="map-grid">
+          <div className="map-stage">
+            <MapContainer
+              className="map-canvas"
+              center={[20, 0]}
+              zoom={2}
+              // 适中的性能优化
+              preferCanvas={true}
+              zoomControl={false} // 禁用默认的左上角缩放控件
+              attributionControl={false}
+              doubleClickZoom={false}
+              boxZoom={false}
+              keyboard={false}
+              wheelPxPerZoomLevel={120}
+              touchZoom={true}
+              fadeAnimation={false}
+              zoomAnimation={false}
+            >
+              {/* 自定义右侧缩放控件 */}
+              <CustomZoomControl />
+              {/* 主要地图源 */}
+              <TileLayer
+                url="https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png"
+                attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
+                maxZoom={14}
+                minZoom={2}
+                updateWhenZooming={false}
+                updateWhenIdle={true}
+                tileSize={256}
+                keepBuffer={2}
               />
-            )}
-          </MapContainer>
-        </div>
 
-        <section className="map-summary-card" aria-label="旅程概览">
-          <div className="map-overlay-header">
-            <div>
-              <span className="overlay-eyebrow">旅程进度</span>
-              <h4>{stats.progress}% 完成度</h4>
-            </div>
-            <div className="overlay-counts">
-              <span>{stats.visitedCount}/{stats.total}</span>
-              <small>已访问</small>
-            </div>
-          </div>
-          <div className="overlay-progress">
-            <div className="overlay-progress-bar">
-              <div
-                className="overlay-progress-fill"
-                style={{ width: `${stats.progress}%` }}
+              {/* 备用地图源1 - 如果主要源失败 */}
+              <TileLayer
+                url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+                attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
+                maxZoom={14}
+                minZoom={2}
+                updateWhenZooming={false}
+                updateWhenIdle={true}
+                tileSize={256}
+                keepBuffer={2}
+                opacity={0.8}
+                zIndex={-1}
               />
-            </div>
-            <div className="overlay-progress-meta">
-              <span>愿望 {stats.wishlistCount}</span>
-              <span>计划 {stats.plannedCount}</span>
-            </div>
-          </div>
 
-          {heroHighlight && (
-            <div className="overlay-highlight">
-              <span className="overlay-badge">今日灵感</span>
-              <p>
-                {heroHighlight.name}
-                {heroHighlight.bestTime && (
-                  <span className="overlay-subtle"> · 最佳 {heroHighlight.bestTime}</span>
-                )}
-              </p>
-            </div>
-          )}
+              {/* 备用地图源2 - 最轻量 */}
+              <TileLayer
+                url="https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png"
+                attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
+                maxZoom={12}
+                minZoom={2}
+                updateWhenZooming={false}
+                updateWhenIdle={true}
+                tileSize={256}
+                keepBuffer={1}
+                opacity={0.6}
+                zIndex={-2}
+              />
 
-          {upcomingPlans.length > 0 && (
-            <div className="overlay-next">
-              <span className="overlay-badge secondary">下一站</span>
-              <div className="overlay-next-body">
-                <strong>{upcomingPlans[0].destinationName}</strong>
-                {upcomingPlans[0].title && <span> · {upcomingPlans[0].title}</span>}
-              </div>
-              {upcomingPlans[0].date && (
-                <small className="overlay-subtle">出发日 {upcomingPlans[0].date}</small>
+              {filteredDestinationsMemo.map(destination => (
+                <Marker
+                  key={destination.id}
+                  position={destination.coordinates}
+                  icon={destination.visited ? visitedIcon : customIcon}
+                  eventHandlers={{
+                    click: () => handleMarkerClick(destination)
+                  }}
+                >
+                  <Popup>{renderPopupContent(destination)}</Popup>
+                </Marker>
+              ))}
+
+              {visitedPath.length > 1 && (
+                <Polyline
+                  positions={visitedPath}
+                  pathOptions={{
+                    color: '#f472b6',
+                    weight: 3,
+                    opacity: 0.8,
+                    dashArray: '12 12',
+                    lineCap: 'round',
+                    lineJoin: 'round'
+                  }}
+                />
               )}
+            </MapContainer>
+          </div>
+
+          <section className="map-summary-card" aria-label="旅程概览">
+            <div className="map-overlay-header">
+              <div>
+                <span className="overlay-eyebrow">旅程进度</span>
+                <h4>{stats.progress}% 完成度</h4>
+              </div>
+              <div className="overlay-counts">
+                <span>{stats.visitedCount}/{stats.total}</span>
+                <small>已访问</small>
+              </div>
             </div>
-          )}
-        </section>
+            <div className="overlay-progress">
+              <div className="overlay-progress-bar">
+                <div
+                  className="overlay-progress-fill"
+                  style={{ width: `${stats.progress}%` }}
+                />
+              </div>
+              <div className="overlay-progress-meta">
+                <span>愿望 {stats.wishlistCount}</span>
+                <span>计划 {stats.plannedCount}</span>
+              </div>
+            </div>
+
+            {heroHighlight && (
+              <div className="overlay-highlight">
+                <span className="overlay-badge">今日灵感</span>
+                <p>
+                  {heroHighlight.name}
+                  {heroHighlight.bestTime && (
+                    <span className="overlay-subtle"> · 最佳 {heroHighlight.bestTime}</span>
+                  )}
+                </p>
+              </div>
+            )}
+
+            {upcomingPlans.length > 0 && (
+              <div className="overlay-next">
+                <span className="overlay-badge secondary">下一站</span>
+                <div className="overlay-next-body">
+                  <strong>{upcomingPlans[0].destinationName}</strong>
+                  {upcomingPlans[0].title && <span> · {upcomingPlans[0].title}</span>}
+                </div>
+                {upcomingPlans[0].date && (
+                  <small className="overlay-subtle">出发日 {upcomingPlans[0].date}</small>
+                )}
+              </div>
+            )}
+          </section>
+        </div>
       </div>
 
       {showModal && selectedDestination && (

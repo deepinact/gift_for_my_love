@@ -277,44 +277,44 @@
 
 .pinned-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
-  gap: 10px;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 12px;
 }
 
 .pinned-card {
-  border: none;
-  border-radius: 14px;
-  padding: 12px;
-  background: rgba(79, 70, 229, 0.08);
-  color: #312e81;
+  border: 1px solid rgba(148, 163, 184, 0.24);
+  border-radius: 16px;
+  padding: 14px 16px;
+  background: rgba(248, 250, 252, 0.88);
+  color: #1e293b;
   text-align: left;
   display: flex;
   flex-direction: column;
   gap: 6px;
   cursor: pointer;
   transition: transform 0.2s ease, box-shadow 0.2s ease;
-  box-shadow: inset 0 0 0 1px rgba(79, 70, 229, 0.12);
+  box-shadow: 0 12px 26px rgba(15, 23, 42, 0.12);
 }
 
 .pinned-card.completed {
-  background: rgba(16, 185, 129, 0.12);
-  box-shadow: inset 0 0 0 1px rgba(16, 185, 129, 0.22);
+  background: rgba(236, 253, 245, 0.86);
+  border-color: rgba(45, 212, 191, 0.32);
   color: #0f766e;
 }
 
 .pinned-card.in-progress {
-  background: rgba(59, 130, 246, 0.12);
-  box-shadow: inset 0 0 0 1px rgba(59, 130, 246, 0.2);
+  background: rgba(239, 246, 255, 0.88);
+  border-color: rgba(59, 130, 246, 0.28);
   color: #1d4ed8;
 }
 
 .pinned-card.locked {
-  opacity: 0.8;
+  opacity: 0.85;
 }
 
 .pinned-card:hover {
   transform: translateY(-2px);
-  box-shadow: 0 16px 30px rgba(79, 70, 229, 0.18);
+  box-shadow: 0 18px 34px rgba(15, 23, 42, 0.16);
 }
 
 .pinned-card-title {
@@ -324,7 +324,7 @@
 
 .pinned-card-progress {
   font-size: 12px;
-  color: rgba(30, 64, 175, 0.75);
+  color: rgba(71, 85, 105, 0.75);
 }
 
 .stat-item {
@@ -1027,161 +1027,185 @@
   height: 100px;
 }
 
-.overlay-achievements {
+.overlay-achievement-grid {
   display: grid;
-  gap: 16px;
-  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 18px;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
 }
 
-.overlay-achievement {
-  padding: 18px;
-  border-radius: 18px;
-  border: 1px solid rgba(148, 163, 184, 0.25);
-  background: rgba(248, 250, 252, 0.9);
-  box-shadow: 0 16px 32px rgba(15, 23, 42, 0.14);
+.achievement-card {
+  padding: 20px;
+  border-radius: 20px;
+  border: 1px solid rgba(148, 163, 184, 0.22);
+  background: rgba(248, 250, 252, 0.92);
+  box-shadow: 0 18px 38px rgba(15, 23, 42, 0.12);
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 14px;
   transition: transform 0.2s ease, box-shadow 0.2s ease;
-  border-left: 4px solid rgba(99, 102, 241, 0.4);
 }
 
-.overlay-achievement.completed {
-  border-left-color: rgba(16, 185, 129, 0.65);
-  background: rgba(236, 253, 245, 0.88);
-}
-
-.overlay-achievement.in-progress {
-  border-left-color: rgba(59, 130, 246, 0.6);
-  background: rgba(239, 246, 255, 0.88);
-}
-
-.overlay-achievement.locked {
-  border-left-color: rgba(148, 163, 184, 0.55);
-  opacity: 0.92;
-}
-
-.overlay-achievement:hover {
+.achievement-card:hover {
   transform: translateY(-2px);
-  box-shadow: 0 20px 40px rgba(15, 23, 42, 0.18);
+  box-shadow: 0 22px 44px rgba(15, 23, 42, 0.16);
 }
 
-.overlay-achievement-header {
+.achievement-card.completed {
+  background: rgba(236, 253, 245, 0.9);
+  border-color: rgba(45, 212, 191, 0.35);
+}
+
+.achievement-card.in-progress {
+  background: rgba(239, 246, 255, 0.92);
+  border-color: rgba(59, 130, 246, 0.28);
+}
+
+.achievement-card.locked {
+  background: rgba(241, 245, 249, 0.88);
+  border-color: rgba(148, 163, 184, 0.28);
+}
+
+.achievement-card-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 12px;
-  font-size: 12px;
-  color: #64748b;
 }
 
-.overlay-achievement-meta {
-  display: inline-flex;
+.achievement-card-icon {
+  width: 44px;
+  height: 44px;
+  border-radius: 16px;
+  display: flex;
   align-items: center;
-  gap: 6px;
-  color: inherit;
+  justify-content: center;
+  background: rgba(99, 102, 241, 0.16);
+  color: #4338ca;
+  flex-shrink: 0;
+}
+
+.achievement-card.completed .achievement-card-icon {
+  background: rgba(16, 185, 129, 0.16);
+  color: #0f766e;
+}
+
+.achievement-card.in-progress .achievement-card-icon {
+  background: rgba(59, 130, 246, 0.16);
+  color: #1d4ed8;
+}
+
+.achievement-card.locked .achievement-card-icon {
+  background: rgba(148, 163, 184, 0.2);
+  color: #475569;
+}
+
+.achievement-card-title {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  flex: 1;
+}
+
+.achievement-card-title h5 {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 600;
+  color: #0f172a;
+}
+
+.achievement-card-title span {
+  font-size: 12px;
+  color: rgba(71, 85, 105, 0.8);
+  letter-spacing: 0.3px;
 }
 
 .achievement-pin {
   border: none;
-  background: rgba(59, 130, 246, 0.12);
-  color: #1d4ed8;
+  background: rgba(255, 255, 255, 0.65);
+  color: #6366f1;
   border-radius: 999px;
   padding: 6px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
   cursor: pointer;
-  transition: transform 0.2s ease, background 0.2s ease;
-}
-
-.achievement-pin.active {
-  background: rgba(244, 114, 182, 0.18);
-  color: #be185d;
+  transition: transform 0.2s ease, background 0.2s ease, color 0.2s ease;
 }
 
 .achievement-pin:hover {
   transform: scale(1.05);
+  background: rgba(99, 102, 241, 0.18);
 }
 
-.overlay-achievement-body {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
+.achievement-pin.active {
+  background: rgba(244, 114, 182, 0.22);
+  color: #be185d;
 }
 
-.achievement-title {
+.achievement-card-description {
   margin: 0;
-  font-size: 15px;
-  font-weight: 600;
-  color: #0f172a;
-}
-
-.achievement-caption {
-  display: inline-flex;
-  align-items: flex-start;
-  gap: 8px;
-  padding: 10px 14px;
-  border-radius: 14px;
-  border: 1px dashed rgba(148, 163, 184, 0.45);
-  background: rgba(241, 245, 249, 0.85);
-  color: #475569;
-  font-size: 12px;
+  font-size: 13px;
   line-height: 1.6;
+  color: #475569;
+  background: rgba(241, 245, 249, 0.82);
+  border-radius: 14px;
+  padding: 12px 14px;
+  border: 1px dashed rgba(148, 163, 184, 0.38);
 }
 
-.overlay-achievement.completed .achievement-caption {
-  background: rgba(236, 253, 245, 0.85);
-  border-color: rgba(45, 212, 191, 0.45);
-  color: #047857;
+.achievement-card.completed .achievement-card-description {
+  background: rgba(236, 253, 245, 0.82);
+  border-color: rgba(45, 212, 191, 0.32);
+  color: #0f766e;
 }
 
-.overlay-achievement.in-progress .achievement-caption {
-  background: rgba(239, 246, 255, 0.9);
-  border-color: rgba(59, 130, 246, 0.4);
+.achievement-card.in-progress .achievement-card-description {
+  background: rgba(239, 246, 255, 0.86);
+  border-color: rgba(59, 130, 246, 0.32);
   color: #1d4ed8;
 }
 
-.overlay-achievement.locked .achievement-caption {
-  background: rgba(226, 232, 240, 0.7);
-  border-color: rgba(148, 163, 184, 0.4);
-  color: rgba(71, 85, 105, 0.88);
+.achievement-card.locked .achievement-card-description {
+  background: rgba(241, 245, 249, 0.7);
+  border-color: rgba(148, 163, 184, 0.34);
+  color: rgba(71, 85, 105, 0.86);
 }
 
-.achievement-progress {
+.achievement-card-progress {
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 8px;
 }
 
-.achievement-progress-bar {
+.achievement-card-progress-bar {
   height: 6px;
   border-radius: 999px;
-  background: rgba(148, 163, 184, 0.25);
+  background: rgba(148, 163, 184, 0.24);
   overflow: hidden;
 }
 
-.achievement-progress-fill {
+.achievement-card-progress-fill {
   height: 100%;
   border-radius: 999px;
   background: linear-gradient(135deg, rgba(79, 70, 229, 0.9), rgba(244, 114, 182, 0.9));
   transition: width 0.3s ease;
 }
 
-.overlay-achievement.completed .achievement-progress-fill {
-  background: linear-gradient(135deg, rgba(16, 185, 129, 0.95), rgba(45, 212, 191, 0.9));
+.achievement-card.completed .achievement-card-progress-fill {
+  background: linear-gradient(135deg, rgba(16, 185, 129, 0.95), rgba(45, 212, 191, 0.85));
 }
 
-.achievement-progress-stats {
+.achievement-card-progress-meta {
   display: flex;
   justify-content: space-between;
   font-size: 11px;
-  color: rgba(71, 85, 105, 0.8);
+  color: rgba(71, 85, 105, 0.78);
 }
 
-.achievement-reward {
+.achievement-card-reward {
   font-size: 11px;
-  color: rgba(59, 130, 246, 0.8);
+  color: rgba(59, 130, 246, 0.85);
+  letter-spacing: 0.2px;
 }
 
 .overlay-empty {
@@ -1233,6 +1257,10 @@
 
   .pinned-grid {
     grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  }
+
+  .overlay-achievement-grid {
+    grid-template-columns: 1fr;
   }
 
   .sidebar.collapsed {

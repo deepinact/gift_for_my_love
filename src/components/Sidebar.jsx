@@ -313,55 +313,56 @@ const Sidebar = ({
                 <span>{achievements.length}</span>
               </div>
               {achievements.length > 0 ? (
-                <div className="overlay-achievements">
-                  {achievements.map(achievement => (
-                  <div
-                    key={achievement.id}
-                    className={`overlay-achievement ${achievement.status}`}
-                  >
-                    <div className="overlay-achievement-header">
-                      <div className="overlay-achievement-meta">
-                        <Award size={16} />
-                        <span>
-                          {achievement.status === 'completed'
-                            ? '已解锁'
-                            : achievement.status === 'in-progress'
-                              ? '进行中'
-                              : '待解锁'}
-                        </span>
-                      </div>
-                      {onToggleAchievementPin && (
-                        <button
-                          type="button"
-                          className={`achievement-pin ${achievement.pinned ? 'active' : ''}`}
-                          onClick={() => onToggleAchievementPin(achievement.id)}
-                          aria-label={achievement.pinned ? '取消收藏奖章' : '收藏奖章'}
-                        >
-                          <Star size={16} />
-                        </button>
-                      )}
-                    </div>
-                    <div className="overlay-achievement-body">
-                      <h5 className="achievement-title">{achievement.title}</h5>
-                      <div className="achievement-caption">
-                        <span>{achievement.description}</span>
-                      </div>
-                    </div>
-                    <div className="achievement-progress">
-                      <div className="achievement-progress-bar">
-                        <div
-                            className="achievement-progress-fill"
-                            style={{ width: `${achievement.progressPercent}%` }}
-                          />
+                <div className="overlay-achievement-grid">
+                  {achievements.map(achievement => {
+                    const statusLabel =
+                      achievement.status === 'completed'
+                        ? '已完成'
+                        : achievement.status === 'in-progress'
+                          ? '进行中'
+                          : '待解锁'
+
+                    return (
+                      <article
+                        key={achievement.id}
+                        className={`achievement-card ${achievement.status}`}
+                      >
+                        <header className="achievement-card-header">
+                          <div className="achievement-card-icon">
+                            <Award size={18} />
+                          </div>
+                          <div className="achievement-card-title">
+                            <h5>{achievement.title}</h5>
+                            <span>{statusLabel}</span>
+                          </div>
+                          {onToggleAchievementPin && (
+                            <button
+                              type="button"
+                              className={`achievement-pin ${achievement.pinned ? 'active' : ''}`}
+                              onClick={() => onToggleAchievementPin(achievement.id)}
+                              aria-label={achievement.pinned ? '取消收藏奖章' : '收藏奖章'}
+                            >
+                              <Star size={16} />
+                            </button>
+                          )}
+                        </header>
+                        <p className="achievement-card-description">{achievement.description}</p>
+                        <div className="achievement-card-progress">
+                          <div className="achievement-card-progress-bar">
+                            <div
+                              className="achievement-card-progress-fill"
+                              style={{ width: `${achievement.progressPercent}%` }}
+                            />
+                          </div>
+                          <div className="achievement-card-progress-meta">
+                            <span>{achievement.progressPercent}%</span>
+                            <span>{achievement.current || 0}/{achievement.target}</span>
+                          </div>
                         </div>
-                        <div className="achievement-progress-stats">
-                          <span>{achievement.progressPercent}%</span>
-                          <span>{achievement.current || 0}/{achievement.target}</span>
-                        </div>
-                      </div>
-                      <small className="achievement-reward">奖励：{achievement.reward}</small>
-                    </div>
-                  ))}
+                        <div className="achievement-card-reward">奖励 · {achievement.reward}</div>
+                      </article>
+                    )
+                  })}
                 </div>
               ) : (
                 <p className="overlay-empty">暂时还没有成就，和TA一起完成第一个目标吧。</p>
