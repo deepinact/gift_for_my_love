@@ -1,12 +1,77 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react'
-import { MapContainer, TileLayer, Marker, Popup, useMap } from 'react-leaflet'
+import { MapContainer, TileLayer, Marker, Popup, Polyline, useMap } from 'react-leaflet'
 import { Icon } from 'leaflet'
 import { destinations, categories } from './data/destinations'
 import Sidebar from './components/Sidebar'
 import AddDestinationModal from './components/AddDestinationModal'
 import DestinationModal from './components/DestinationModal'
 import MusicPlayer from './components/MusicPlayer'
+import CoupleAuthOverlay from './components/CoupleAuthOverlay'
 import './App.css'
+
+const parseMonthRanges = (text) => {
+  if (!text) return []
+  const matches = text.match(/\d{1,2}/g)
+  if (!matches) return []
+
+  const values = matches
+    .map((value) => {
+      const monthNumber = Number.parseInt(value, 10)
+      if (Number.isNaN(monthNumber)) return null
+      if (monthNumber < 1 || monthNumber > 12) return null
+      return monthNumber
+    })
+    .filter((value) => value !== null)
+
+  if (!values.length) return []
+
+  const ranges = []
+  for (let index = 0; index < values.length; index += 2) {
+    const start = values[index]
+    if (typeof start !== 'number') continue
+    let end = values[index + 1]
+    if (typeof end !== 'number') {
+      end = start
+    }
+    ranges.push({ start, end })
+  }
+  return ranges
+}
+
+const isMonthInRange = (month, range) => {
+  if (!range || typeof range.start !== 'number' || typeof range.end !== 'number') {
+    return false
+  }
+  if (range.start <= range.end) {
+    return month >= range.start && month <= range.end
+  }
+  return month >= range.start || month <= range.end
+}
+
+const isGoodSeasonNow = (bestTime, month) => {
+  const ranges = parseMonthRanges(bestTime)
+  if (!ranges.length) return false
+  return ranges.some((range) => isMonthInRange(month, range))
+}
+
+const ACCOUNTS_KEY = 'couple_accounts_v1'
+const ACTIVE_SESSION_KEY = 'couple_active_session_v1'
+
+const normalizeName = (value) => {
+  if (typeof value !== 'string') return ''
+  return value.trim().toLowerCase()
+}
+
+const clonePlans = (plans) => {
+  if (!Array.isArray(plans)) return []
+  return plans.map((plan) => ({ ...plan }))
+}
+
+const cloneDestinationsList = (list) =>
+  list.map((destination) => ({
+    ...destination,
+    plans: clonePlans(destination.plans)
+  }))
 
 // 自定义缩放控件组件
 const CustomZoomControl = () => {
@@ -56,14 +121,148 @@ const visitedIcon = new Icon({
 })
 
 function App() {
+  const [session, setSession] = useState(null)
+  const [isAuthReady, setIsAuthReady] = useState(false)
+  const [authLoading, setAuthLoading] = useState(false)
+  const [authGlobalError, setAuthGlobalError] = useState('')
+  const [pinnedAchievements, setPinnedAchievements] = useState([])
   const [selectedDestination, setSelectedDestination] = useState(null)
   const [showModal, setShowModal] = useState(false)
-  const [destinationsData, setDestinationsData] = useState(destinations)
+  const [destinationsData, setDestinationsData] = useState(() => cloneDestinationsList(destinations))
   const [selectedCategory, setSelectedCategory] = useState('全部')
   const [searchTerm, setSearchTerm] = useState('')
   const [showVisited, setShowVisited] = useState(false)
   const [showWishlist, setShowWishlist] = useState(false)
   const [showAddModal, setShowAddModal] = useState(false)
+
+  const storageKey = session ? session.storageKey : null
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+
+    try {
+      const accountsRaw = localStorage.getItem(ACCOUNTS_KEY)
+      let accounts = []
+      if (accountsRaw) {
+        try {
+          const parsed = JSON.parse(accountsRaw)
+          if (Array.isArray(parsed)) {
+            accounts = parsed
+          }
+        } catch {}
+      }
+
+      const activeRaw = localStorage.getItem(ACTIVE_SESSION_KEY)
+      if (activeRaw) {
+        try {
+          const active = JSON.parse(activeRaw)
+          if (active?.accountId) {
+            const account = accounts.find((item) => item.id === active.accountId)
+            if (account) {
+              const members = Array.isArray(account.members) ? account.members : []
+              const activeMember = members.find((member) => member.normalized === active.activeMember) || members[0]
+              const partnerMember = members.find((member) => member.normalized !== activeMember?.normalized) || members[1] || members[0]
+              if (activeMember) {
+                setSession({
+                  accountId: account.id,
+                  myUsername: activeMember.displayName,
+                  partnerUsername: partnerMember?.displayName || activeMember.displayName,
+                  members: members.length ? members.map((member) => member.displayName) : undefined,
+                  storageKey: account.storageKey
+                })
+              }
+            }
+          }
+        } catch {}
+      }
+    } catch (error) {
+      console.warn('读取账号信息失败', error)
+    } finally {
+      setIsAuthReady(true)
+    }
+  }, [])
+
+  useEffect(() => {
+    if (!session) {
+      setDestinationsData(cloneDestinationsList(destinations))
+      setPinnedAchievements([])
+      return
+    }
+
+    if (typeof window === 'undefined') return
+
+    let nextData = cloneDestinationsList(destinations)
+    try {
+      const stored = localStorage.getItem(`${session.storageKey}_destinations_state`)
+      if (stored) {
+        const parsed = JSON.parse(stored)
+        if (Array.isArray(parsed) && parsed.length) {
+          nextData = cloneDestinationsList(parsed)
+        }
+      } else {
+        const legacy = localStorage.getItem('custom_destinations')
+        if (legacy) {
+          try {
+            const legacyParsed = JSON.parse(legacy)
+            if (Array.isArray(legacyParsed) && legacyParsed.length) {
+              nextData = cloneDestinationsList([...destinations, ...legacyParsed])
+            }
+          } catch {}
+        }
+      }
+    } catch (error) {
+      console.warn('加载目的地数据失败', error)
+      nextData = cloneDestinationsList(destinations)
+    }
+
+    setDestinationsData(nextData)
+
+    try {
+      const savedPinsRaw = localStorage.getItem(`${session.storageKey}_pinned_achievements`)
+      if (savedPinsRaw) {
+        const parsedPins = JSON.parse(savedPinsRaw)
+        if (Array.isArray(parsedPins)) {
+          setPinnedAchievements(parsedPins)
+        } else {
+          setPinnedAchievements([])
+        }
+      } else {
+        setPinnedAchievements([])
+      }
+    } catch {
+      setPinnedAchievements([])
+    }
+  }, [session])
+
+  useEffect(() => {
+    if (!session || !storageKey) return
+    if (typeof window === 'undefined') return
+
+    try {
+      localStorage.setItem(`${storageKey}_destinations_state`, JSON.stringify(destinationsData))
+    } catch (error) {
+      console.warn('保存目的地数据失败', error)
+    }
+  }, [destinationsData, session, storageKey])
+
+  useEffect(() => {
+    if (!session || !storageKey) return
+    if (typeof window === 'undefined') return
+
+    try {
+      localStorage.setItem(`${storageKey}_pinned_achievements`, JSON.stringify(pinnedAchievements))
+    } catch (error) {
+      console.warn('保存奖章收藏失败', error)
+    }
+  }, [pinnedAchievements, session, storageKey])
+
+  useEffect(() => {
+    setSelectedDestination(null)
+    setShowModal(false)
+    setShowAddModal(false)
+  }, [session])
+
+  const baseDestinationIds = useMemo(() => new Set(destinations.map(dest => dest.id)), [])
 
   // 使用useMemo优化过滤逻辑
   const filteredDestinationsMemo = useMemo(() => {
@@ -93,6 +292,40 @@ function App() {
     return filtered
   }, [destinationsData, selectedCategory, searchTerm, showVisited, showWishlist])
 
+  const totalPlansCount = useMemo(() => {
+    return destinationsData.reduce((sum, destination) => {
+      if (!Array.isArray(destination.plans)) return sum
+      return sum + destination.plans.length
+    }, 0)
+  }, [destinationsData])
+
+  const sharedPlanNotesCount = useMemo(() => {
+    return destinationsData.reduce((sum, destination) => {
+      if (!Array.isArray(destination.plans)) return sum
+      const noted = destination.plans.filter((plan) => {
+        return [plan.notes, plan.description, plan.activities]
+          .some((field) => typeof field === 'string' && field.trim().length > 0)
+      })
+      return sum + noted.length
+    }, 0)
+  }, [destinationsData])
+
+  const engagedCategoryCount = useMemo(() => {
+    const categorySet = new Set()
+    destinationsData.forEach((destination) => {
+      if (!destination?.category) return
+      const hasEngagement = destination.visited || destination.wishlist || (Array.isArray(destination.plans) && destination.plans.length > 0)
+      if (hasEngagement) {
+        categorySet.add(destination.category)
+      }
+    })
+    return categorySet.size
+  }, [destinationsData])
+
+  const customDestinationsCount = useMemo(() => {
+    return destinationsData.filter((destination) => !baseDestinationIds.has(destination.id)).length
+  }, [baseDestinationIds, destinationsData])
+
   // 使用useCallback优化事件处理函数
   const handleMarkerClick = useCallback((destination) => {
     setSelectedDestination(destination)
@@ -106,60 +339,390 @@ function App() {
   }, [])
 
   const handleUpdateDestination = useCallback((updatedDestination) => {
-    // 更新本地存储中的计划
-    if (updatedDestination.plans) {
-      localStorage.setItem(`plans_${updatedDestination.id}`, JSON.stringify(updatedDestination.plans))
-    }
-    
-    // 更新目的地数据状态
-    setDestinationsData(prevDestinations => 
+    setDestinationsData(prevDestinations =>
       prevDestinations.map(dest =>
-        dest.id === updatedDestination.id ? updatedDestination : dest
+        dest.id === updatedDestination.id
+          ? { ...updatedDestination, plans: clonePlans(updatedDestination.plans) }
+          : dest
       )
     )
-    
+
+    setSelectedDestination(prev =>
+      prev && prev.id === updatedDestination.id
+        ? { ...updatedDestination, plans: clonePlans(updatedDestination.plans) }
+        : prev
+    )
+
     setShowModal(false)
   }, [])
 
   // 新增目的地
   const handleAddDestination = useCallback((payload) => {
+    if (!session) return
+
     const nextId = Math.max(...destinationsData.map(d => d.id), 0) + 1
     const newDestination = {
       id: nextId,
-      ...payload
+      createdAt: new Date().toISOString(),
+      createdBy: session.myUsername,
+      sharedWith: session.partnerUsername,
+      ...payload,
+      plans: clonePlans(payload.plans)
     }
     setDestinationsData(prev => [newDestination, ...prev])
-    // 持久化（简单本地备份）
-    try {
-      const saved = JSON.parse(localStorage.getItem('custom_destinations') || '[]')
-      localStorage.setItem('custom_destinations', JSON.stringify([newDestination, ...saved]))
-    } catch {}
     setShowAddModal(false)
     setSelectedDestination(newDestination)
     setShowModal(true)
-  }, [destinationsData])
+  }, [destinationsData, session])
+
+  const handleAuthenticate = useCallback(async ({ mode, myUsername, partnerUsername, password }) => {
+    if (typeof window === 'undefined') {
+      return { success: false, message: '当前环境暂不支持登录。' }
+    }
+
+    if (authLoading) {
+      return { success: false }
+    }
+
+    setAuthLoading(true)
+    setAuthGlobalError('')
+
+    try {
+      let accounts = []
+      try {
+        const raw = localStorage.getItem(ACCOUNTS_KEY)
+        if (raw) {
+          const parsed = JSON.parse(raw)
+          if (Array.isArray(parsed)) {
+            accounts = parsed
+          }
+        }
+      } catch {}
+
+      const normalizedMy = normalizeName(myUsername)
+      const normalizedPartner = normalizeName(partnerUsername)
+      const pairKey = [normalizedMy, normalizedPartner].sort().join('__')
+
+      if (!normalizedMy || !normalizedPartner) {
+        return { success: false, message: '请填写旅伴的名字。' }
+      }
+
+      if (mode === 'register' && password.length < 6) {
+        return { success: false, message: '密码至少需要 6 位字符。' }
+      }
+
+      let account = accounts.find((item) => item.storageKey === pairKey)
+
+      if (mode === 'register') {
+        if (account) {
+          return { success: false, message: '这个组合已经创建过共享账号啦，可以直接登录。' }
+        }
+
+        account = {
+          id: `acc_${Date.now()}`,
+          storageKey: pairKey,
+          members: [
+            { displayName: myUsername, normalized: normalizedMy },
+            { displayName: partnerUsername, normalized: normalizedPartner }
+          ],
+          password,
+          createdAt: new Date().toISOString()
+        }
+        accounts = [...accounts, account]
+        localStorage.setItem(ACCOUNTS_KEY, JSON.stringify(accounts))
+      } else {
+        if (!account) {
+          return { success: false, message: '未找到对应的双人账号，请确认彼此的昵称。' }
+        }
+
+        if (account.password !== password) {
+          return { success: false, message: '密码不正确，请再试一次。' }
+        }
+      }
+
+      const members = Array.isArray(account.members) ? account.members : []
+      const selfMember = members.find((member) => member.normalized === normalizedMy) || {
+        displayName: myUsername,
+        normalized: normalizedMy
+      }
+      const partnerMember = members.find((member) => member.normalized === normalizedPartner) || {
+        displayName: partnerUsername,
+        normalized: normalizedPartner
+      }
+
+      if (!members.length) {
+        account.members = [selfMember, partnerMember]
+        const nextAccounts = accounts.map((item) => (item.id === account.id ? account : item))
+        localStorage.setItem(ACCOUNTS_KEY, JSON.stringify(nextAccounts))
+      }
+
+      localStorage.setItem(
+        ACTIVE_SESSION_KEY,
+        JSON.stringify({ accountId: account.id, activeMember: selfMember.normalized })
+      )
+
+      setSession({
+        accountId: account.id,
+        myUsername: selfMember.displayName,
+        partnerUsername: partnerMember.displayName,
+        members: (account.members || [selfMember, partnerMember]).map((member) => member.displayName),
+        storageKey: account.storageKey
+      })
+      setAuthGlobalError('')
+
+      return { success: true }
+    } catch (error) {
+      console.warn('账号操作失败', error)
+      const message = '暂时无法处理请求，请稍后再试。'
+      setAuthGlobalError(message)
+      return { success: false, message }
+    } finally {
+      setAuthLoading(false)
+    }
+  }, [authLoading])
+
+  const handleLogout = useCallback(() => {
+    if (typeof window !== 'undefined') {
+      try {
+        localStorage.removeItem(ACTIVE_SESSION_KEY)
+      } catch {}
+    }
+    setSession(null)
+    setPinnedAchievements([])
+    setSelectedDestination(null)
+    setShowModal(false)
+    setShowAddModal(false)
+    setAuthGlobalError('')
+  }, [])
+
+  const toggleAchievementPin = useCallback((achievementId) => {
+    setPinnedAchievements((prev) => {
+      if (prev.includes(achievementId)) {
+        return prev.filter((id) => id !== achievementId)
+      }
+      const next = [...prev, achievementId]
+      if (next.length > 6) {
+        next.shift()
+      }
+      return next
+    })
+  }, [])
 
   // 使用useMemo优化统计数据
   const stats = useMemo(() => {
     const visitedCount = destinationsData.filter(dest => dest.visited).length
     const wishlistCount = destinationsData.filter(dest => dest.wishlist).length
-    return { visitedCount, wishlistCount }
+    const plannedCount = destinationsData.filter(dest => Array.isArray(dest.plans) && dest.plans.length > 0).length
+    const noteRichCount = destinationsData.filter(dest => dest.notes && dest.notes.trim().length > 0).length
+    const total = destinationsData.length
+    const progress = total ? Math.round((visitedCount / total) * 100) : 0
+    return { visitedCount, wishlistCount, plannedCount, noteRichCount, total, progress }
   }, [destinationsData])
 
-  // 初次加载合并自定义目的地
-  useEffect(() => {
-    try {
-      const saved = JSON.parse(localStorage.getItem('custom_destinations') || '[]')
-      if (Array.isArray(saved) && saved.length) {
-        // 去重合并（按 id）
-        setDestinationsData(prev => {
-          const existingIds = new Set(prev.map(d => d.id))
-          const toAdd = saved.filter(d => !existingIds.has(d.id))
-          return [...prev, ...toAdd]
-        })
+  const dailyMood = useMemo(() => {
+    const moodList = [
+      {
+        title: '海风恋人',
+        message: '想象一下在柔软沙滩上看星星，让心意被海浪轻轻诉说。',
+        tip: '挑一个海岛，写下你想和TA做的第一件事。'
+      },
+      {
+        title: '城市心跳',
+        message: '夜幕下的霓虹和咖啡香气，是属于两人的都市烟火。',
+        tip: '在愿望清单里添加一个想尝试的城市体验。'
+      },
+      {
+        title: '山谷耳语',
+        message: '去山谷里听风吹过树林，感受世界最温柔的回声。',
+        tip: '选择一个徒步目的地，计划一个慢节奏的清晨。'
+      },
+      {
+        title: '文化漫步',
+        message: '在博物馆或古街散步，让爱情在时光中慢慢生长。',
+        tip: '挑一座城市，搜集三件想看的艺术珍藏。'
+      },
+      {
+        title: '浪漫列车',
+        message: '坐上一列开往未知的列车，把每个窗外风景都存成纪念。',
+        tip: '在计划里加入一段长途列车或公路旅程。'
       }
-    } catch {}
+    ]
+    const todayKey = new Date().toISOString().slice(0, 10)
+    const seed = todayKey.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0)
+    return moodList[seed % moodList.length]
   }, [])
+
+  const seasonalHighlights = useMemo(() => {
+    const month = new Date().getMonth() + 1
+    const matches = destinationsData.filter((destination) =>
+      isGoodSeasonNow(destination.bestTime, month)
+    )
+    const scored = matches
+      .map((destination) => {
+        const wishlistScore = destination.wishlist ? 2 : 0
+        const planScore = Array.isArray(destination.plans) && destination.plans.length > 0 ? 1 : 0
+        const visitedPenalty = destination.visited ? -1 : 0
+        const score = wishlistScore + planScore + visitedPenalty
+        return { destination, score }
+      })
+      .sort((a, b) => b.score - a.score)
+
+    return scored.slice(0, 3).map((item) => item.destination)
+  }, [destinationsData])
+
+  const wishlistSpotlights = useMemo(() => {
+    const wishlistOnly = destinationsData.filter((destination) => destination.wishlist && !destination.visited)
+    const sorted = wishlistOnly
+      .map((destination) => {
+        const planScore = Array.isArray(destination.plans) ? destination.plans.length : 0
+        return { destination, score: planScore }
+      })
+      .sort((a, b) => b.score - a.score)
+    return sorted.slice(0, 3).map((item) => item.destination)
+  }, [destinationsData])
+
+  const memoryLane = useMemo(() => {
+    const visitedWithNotes = destinationsData.filter(
+      (destination) => destination.visited && destination.notes && destination.notes.trim().length > 0
+    )
+    return visitedWithNotes.slice(0, 3)
+  }, [destinationsData])
+
+  const upcomingPlans = useMemo(() => {
+    const planEntries = []
+    destinationsData.forEach((destination) => {
+      if (!Array.isArray(destination.plans)) return
+      destination.plans.forEach((plan) => {
+        if (!plan) return
+        const timestamp = plan.date ? Date.parse(plan.date) : Number.NaN
+        planEntries.push({
+          ...plan,
+          destinationName: destination.name,
+          destinationId: destination.id,
+          timestamp
+        })
+      })
+    })
+
+    const validPlans = planEntries.filter((plan) => !Number.isNaN(plan.timestamp))
+    validPlans.sort((a, b) => a.timestamp - b.timestamp)
+
+    const fallbackPlans = planEntries.filter((plan) => Number.isNaN(plan.timestamp))
+    const combined = [...validPlans, ...fallbackPlans]
+    return combined.slice(0, 4)
+  }, [destinationsData])
+
+  const travelAchievements = useMemo(() => {
+    const achievementBlueprints = [
+      {
+        id: 'duo-signed-in',
+        title: '心意同步',
+        description: '双人账号成功登录，开启共享旅程空间。',
+        current: session ? 1 : 0,
+        target: 1,
+        reward: '解锁共享旅行日志与同步计划。'
+      },
+      {
+        id: 'first-dream',
+        title: '旅行起步',
+        description: '已经收藏了第一个心动目的地。',
+        current: Math.min(stats.wishlistCount, 1),
+        target: 1,
+        reward: '获得第一颗心愿徽章。'
+      },
+      {
+        id: 'wishlist-collector',
+        title: '梦想收藏家',
+        description: '愿望清单里拥有 10 个目的地。',
+        current: stats.wishlistCount,
+        target: 10,
+        reward: '灵感面板解锁特别推荐槽位。'
+      },
+      {
+        id: 'footprint-explorer',
+        title: '足迹拓荒者',
+        description: '标记 3 个已访问的地方，留下爱的足迹。',
+        current: stats.visitedCount,
+        target: 3,
+        reward: '旅程路线将拥有星光轨迹。'
+      },
+      {
+        id: 'plan-master',
+        title: '规划大师',
+        description: '为至少 5 个旅行计划写下细节。',
+        current: totalPlansCount,
+        target: 5,
+        reward: '行程卡片可自定义主题色。'
+      },
+      {
+        id: 'story-keeper',
+        title: '回忆保管员',
+        description: '在目的地备注里写下 3 段旅行心情。',
+        current: stats.noteRichCount,
+        target: 3,
+        reward: '回忆胶囊开启柔光滤镜。'
+      },
+      {
+        id: 'category-explorer',
+        title: '风格冒险家',
+        description: '走过或计划 4 种不同风格的旅程。',
+        current: engagedCategoryCount,
+        target: 4,
+        reward: '地图支持多彩类别徽标。'
+      },
+      {
+        id: 'custom-dreamer',
+        title: '梦想设计师',
+        description: '添加 3 个属于你们的自定义目的地。',
+        current: customDestinationsCount,
+        target: 3,
+        reward: '自定义目的地卡片可添加专属背景。'
+      },
+      {
+        id: 'shared-journalist',
+        title: '共写日记',
+        description: '在旅行计划中记录 4 条行程备注或活动安排。',
+        current: sharedPlanNotesCount,
+        target: 4,
+        reward: '行程计划可以添加情侣贴纸。'
+      }
+    ]
+
+    return achievementBlueprints.map((achievement) => {
+      const progressValue = achievement.target > 0
+        ? Math.min(1, achievement.current / achievement.target)
+        : achievement.current > 0 ? 1 : 0
+      return {
+        ...achievement,
+        achieved: progressValue >= 1,
+        progress: progressValue,
+        progressPercent: Math.round(progressValue * 100),
+        status:
+          progressValue >= 1
+            ? 'completed'
+            : achievement.current > 0
+              ? 'in-progress'
+              : 'locked',
+        pinned: pinnedAchievements.includes(achievement.id)
+      }
+    })
+  }, [customDestinationsCount, engagedCategoryCount, pinnedAchievements, session, sharedPlanNotesCount, stats, totalPlansCount])
+
+  useEffect(() => {
+    if (!session) return
+    setPinnedAchievements((prev) => {
+      const valid = prev.filter((id) => travelAchievements.some((achievement) => achievement.id === id))
+      if (valid.length === prev.length) {
+        return prev
+      }
+      return valid
+    })
+  }, [session, travelAchievements])
+
+  const visitedPath = useMemo(() => {
+    const visited = destinationsData.filter((destination) => destination.visited)
+    return visited.map((destination) => destination.coordinates)
+  }, [destinationsData])
 
   // 简化的弹窗内容
   const renderPopupContent = useCallback((destination) => (
@@ -167,7 +730,10 @@ function App() {
       <h3>{destination.name}</h3>
       <p><strong>国家:</strong> {destination.country}</p>
       <p><strong>类型:</strong> {destination.category}</p>
-      <button 
+      {destination.bestTime && (
+        <p><strong>最佳时间:</strong> {destination.bestTime}</p>
+      )}
+      <button
         className="btn-primary"
         onClick={() => handleMarkerClick(destination)}
       >
@@ -175,6 +741,24 @@ function App() {
       </button>
     </div>
   ), [handleMarkerClick])
+
+  const heroHighlight = seasonalHighlights[0] || wishlistSpotlights[0] || null
+
+  if (!isAuthReady) {
+    return null
+  }
+
+  if (!session) {
+    return (
+      <div className="app auth-only">
+        <CoupleAuthOverlay
+          onAuthenticate={handleAuthenticate}
+          isLoading={authLoading}
+          errorMessage={authGlobalError}
+        />
+      </div>
+    )
+  }
 
   return (
     <div className="app">
@@ -190,96 +774,156 @@ function App() {
         setShowVisited={setShowVisited}
         showWishlist={showWishlist}
         setShowWishlist={setShowWishlist}
-        visitedCount={stats.visitedCount}
-        wishlistCount={stats.wishlistCount}
+        stats={stats}
+        seasonalHighlights={seasonalHighlights}
+        wishlistSpotlights={wishlistSpotlights}
+        upcomingPlans={upcomingPlans}
+        achievements={travelAchievements}
+        memoryLane={memoryLane}
+        dailyMood={dailyMood}
         onDestinationClick={handleSidebarDestinationClick}
         onAddDestination={() => setShowAddModal(true)}
+        session={session}
+        pinnedAchievements={pinnedAchievements}
+        onToggleAchievementPin={toggleAchievementPin}
+        onLogout={handleLogout}
       />
 
       <div className="map-container">
-        <MapContainer
-          center={[20, 0]}
-          zoom={2}
-          style={{ height: '100vh', width: '100%' }}
-          // 适中的性能优化
-          preferCanvas={true}
-          zoomControl={false} // 禁用默认的左上角缩放控件
-          attributionControl={false}
-          doubleClickZoom={false}
-          boxZoom={false}
-          keyboard={false}
-          wheelPxPerZoomLevel={120}
-          touchZoom={true}
-          fadeAnimation={false}
-          zoomAnimation={false}
-        >
-          {/* 自定义右侧缩放控件 */}
-          <CustomZoomControl />
-          {/* 主要地图源 */}
-          <TileLayer
-            url="https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png"
-            attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
-            maxZoom={14}
-            minZoom={2}
-            updateWhenZooming={false}
-            updateWhenIdle={true}
-            tileSize={256}
-            keepBuffer={2}
-          />
-          
-          {/* 备用地图源1 - 如果主要源失败 */}
-          <TileLayer
-            url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-            attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
-            maxZoom={14}
-            minZoom={2}
-            updateWhenZooming={false}
-            updateWhenIdle={true}
-            tileSize={256}
-            keepBuffer={2}
-            opacity={0.8}
-            zIndex={-1}
-          />
-          
-          {/* 备用地图源2 - 最轻量 */}
-          <TileLayer
-            url="https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png"
-            attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
-            maxZoom={12}
-            minZoom={2}
-            updateWhenZooming={false}
-            updateWhenIdle={true}
-            tileSize={256}
-            keepBuffer={1}
-            opacity={0.6}
-            zIndex={-2}
-          />
-          
-          {filteredDestinationsMemo.map(destination => (
-            <Marker
-              key={destination.id}
-              position={destination.coordinates}
-              icon={destination.visited ? visitedIcon : customIcon}
-              eventHandlers={{
-                click: () => handleMarkerClick(destination)
-              }}
-            >
-              <Popup>
-                <div className="custom-popup">
-                  <h3>{destination.name}</h3>
-                  <p><strong>国家:</strong> {destination.country}</p>
-                  <p><strong>类型:</strong> {destination.category}</p>
-                  <button 
-                    className="btn-primary"
-                    onClick={() => handleMarkerClick(destination)}
-                  >
-                    查看详情
-                  </button>
+        <div className="map-stage">
+          <MapContainer
+            className="map-canvas"
+            center={[20, 0]}
+            zoom={2}
+            // 适中的性能优化
+            preferCanvas={true}
+            zoomControl={false} // 禁用默认的左上角缩放控件
+            attributionControl={false}
+            doubleClickZoom={false}
+            boxZoom={false}
+            keyboard={false}
+            wheelPxPerZoomLevel={120}
+            touchZoom={true}
+            fadeAnimation={false}
+            zoomAnimation={false}
+          >
+            {/* 自定义右侧缩放控件 */}
+            <CustomZoomControl />
+            {/* 主要地图源 */}
+            <TileLayer
+              url="https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png"
+              attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
+              maxZoom={14}
+              minZoom={2}
+              updateWhenZooming={false}
+              updateWhenIdle={true}
+              tileSize={256}
+              keepBuffer={2}
+            />
+
+            {/* 备用地图源1 - 如果主要源失败 */}
+            <TileLayer
+              url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+              attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
+              maxZoom={14}
+              minZoom={2}
+              updateWhenZooming={false}
+              updateWhenIdle={true}
+              tileSize={256}
+              keepBuffer={2}
+              opacity={0.8}
+              zIndex={-1}
+            />
+
+            {/* 备用地图源2 - 最轻量 */}
+            <TileLayer
+              url="https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png"
+              attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
+              maxZoom={12}
+              minZoom={2}
+              updateWhenZooming={false}
+              updateWhenIdle={true}
+              tileSize={256}
+              keepBuffer={1}
+              opacity={0.6}
+              zIndex={-2}
+            />
+
+            {filteredDestinationsMemo.map(destination => (
+              <Marker
+                key={destination.id}
+                position={destination.coordinates}
+                icon={destination.visited ? visitedIcon : customIcon}
+                eventHandlers={{
+                  click: () => handleMarkerClick(destination)
+                }}
+              >
+                <Popup>{renderPopupContent(destination)}</Popup>
+              </Marker>
+            ))}
+
+            {visitedPath.length > 1 && (
+              <Polyline
+                positions={visitedPath}
+                pathOptions={{
+                  color: '#f472b6',
+                  weight: 3,
+                  opacity: 0.8,
+                  dashArray: '12 12',
+                  lineCap: 'round',
+                  lineJoin: 'round'
+                }}
+              />
+            )}
+          </MapContainer>
+
+          <aside className="map-progress-dock" aria-label="旅程概览">
+            <div className="map-overlay-header">
+              <span className="overlay-eyebrow">旅程进度</span>
+              <div className="map-progress-score">
+                <strong>{stats.progress}%</strong>
+                <span>{stats.visitedCount}/{stats.total} 已访问</span>
+              </div>
+            </div>
+            <div className="overlay-progress">
+              <div className="overlay-progress-bar">
+                <div
+                  className="overlay-progress-fill"
+                  style={{ width: `${stats.progress}%` }}
+                />
+              </div>
+              <div className="overlay-progress-meta">
+                <span>愿望 {stats.wishlistCount}</span>
+                <span>计划 {stats.plannedCount}</span>
+              </div>
+            </div>
+
+            {heroHighlight && (
+              <div className="overlay-highlight">
+                <span className="overlay-badge">今日灵感</span>
+                <p>
+                  {heroHighlight.name}
+                  {heroHighlight.bestTime && (
+                    <span className="overlay-subtle"> · 最佳 {heroHighlight.bestTime}</span>
+                  )}
+                </p>
+              </div>
+            )}
+
+            {upcomingPlans.length > 0 && (
+              <div className="overlay-next">
+                <span className="overlay-badge secondary">下一站</span>
+                <div className="overlay-next-body">
+                  <strong>{upcomingPlans[0].destinationName}</strong>
+                  {upcomingPlans[0].title && <span> · {upcomingPlans[0].title}</span>}
                 </div>
-              </Popup>
-            </Marker>
-          ))}
-        </MapContainer>
+                {upcomingPlans[0].date && (
+                  <small className="overlay-subtle">出发日 {upcomingPlans[0].date}</small>
+                )}
+              </div>
+            )}
+          </aside>
+        </div>
       </div>
 
       {showModal && selectedDestination && (
@@ -287,11 +931,12 @@ function App() {
           destination={selectedDestination}
           onClose={() => setShowModal(false)}
           onUpdate={handleUpdateDestination}
+          storageKey={storageKey}
         />
       )}
 
       {showAddModal && (
-        <AddDestinationModal 
+        <AddDestinationModal
           categories={categories}
           onClose={() => setShowAddModal(false)}
           onSubmit={handleAddDestination}
