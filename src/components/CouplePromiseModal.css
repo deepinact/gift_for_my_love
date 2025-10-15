@@ -1,0 +1,205 @@
+.promise-modal {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: clamp(24px, 6vw, 48px);
+  z-index: 3000;
+}
+
+.promise-backdrop {
+  position: absolute;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.68);
+  border: none;
+  padding: 0;
+}
+
+.promise-panel {
+  position: relative;
+  width: min(520px, 100%);
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+  padding: clamp(24px, 4vw, 36px);
+  border-radius: 28px;
+  background: rgba(15, 23, 42, 0.88);
+  border: 1px solid rgba(148, 163, 184, 0.28);
+  box-shadow: 0 30px 80px rgba(15, 23, 42, 0.45);
+  color: #e2e8f0;
+  backdrop-filter: blur(22px);
+  -webkit-backdrop-filter: blur(22px);
+}
+
+.promise-panel-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 16px;
+}
+
+.promise-panel-title {
+  display: flex;
+  gap: 16px;
+  align-items: flex-start;
+}
+
+.promise-panel-title svg {
+  flex-shrink: 0;
+  width: 40px;
+  height: 40px;
+  padding: 10px;
+  border-radius: 14px;
+  background: rgba(244, 114, 182, 0.18);
+  color: rgba(249, 168, 212, 0.95);
+  box-shadow: inset 0 0 0 1px rgba(244, 114, 182, 0.2);
+}
+
+.promise-panel-title h2 {
+  margin: 0;
+  font-size: 20px;
+  font-weight: 600;
+  color: #f8fafc;
+}
+
+.promise-panel-title p {
+  margin: 6px 0 0;
+  font-size: 13px;
+  color: rgba(226, 232, 240, 0.75);
+}
+
+.promise-close {
+  border: none;
+  background: transparent;
+  color: rgba(226, 232, 240, 0.7);
+  padding: 6px;
+  border-radius: 12px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.promise-close:hover {
+  color: #f8fafc;
+  background: rgba(148, 163, 184, 0.18);
+}
+
+.promise-form {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.promise-form label {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  font-size: 13px;
+  color: rgba(226, 232, 240, 0.85);
+}
+
+.promise-form input,
+.promise-form textarea {
+  width: 100%;
+  border-radius: 18px;
+  border: 1px solid rgba(148, 163, 184, 0.28);
+  background: rgba(15, 23, 42, 0.6);
+  color: #f8fafc;
+  padding: 14px 16px;
+  font-size: 14px;
+  line-height: 1.5;
+  transition: all 0.2s ease;
+  font-family: inherit;
+}
+
+.promise-form input::placeholder,
+.promise-form textarea::placeholder {
+  color: rgba(148, 163, 184, 0.6);
+}
+
+.promise-form input:focus,
+.promise-form textarea:focus {
+  outline: none;
+  border-color: rgba(96, 165, 250, 0.6);
+  box-shadow: 0 0 0 2px rgba(96, 165, 250, 0.15);
+  background: rgba(30, 41, 59, 0.82);
+}
+
+.promise-form textarea {
+  resize: vertical;
+  min-height: 108px;
+}
+
+.promise-error {
+  margin: -6px 0 0;
+  font-size: 12px;
+  color: #fda4af;
+}
+
+.promise-actions {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.promise-secondary {
+  border: 1px solid rgba(148, 163, 184, 0.35);
+  background: transparent;
+  color: rgba(226, 232, 240, 0.85);
+  border-radius: 999px;
+  padding: 10px 20px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.promise-secondary:hover {
+  border-color: rgba(226, 232, 240, 0.65);
+  color: #f8fafc;
+}
+
+.promise-primary {
+  border: none;
+  background: linear-gradient(135deg, rgba(96, 165, 250, 0.95), rgba(236, 72, 153, 0.95));
+  color: #0f172a;
+  font-weight: 600;
+  border-radius: 999px;
+  padding: 10px 24px;
+  cursor: pointer;
+  box-shadow: 0 18px 36px rgba(59, 130, 246, 0.28);
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.promise-primary:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 22px 42px rgba(59, 130, 246, 0.32);
+}
+
+@media (max-width: 560px) {
+  .promise-modal {
+    padding: 16px;
+  }
+
+  .promise-panel {
+    border-radius: 22px;
+    padding: 22px;
+  }
+
+  .promise-panel-title svg {
+    width: 36px;
+    height: 36px;
+    padding: 8px;
+  }
+
+  .promise-actions {
+    flex-direction: column-reverse;
+    align-items: stretch;
+  }
+
+  .promise-secondary,
+  .promise-primary {
+    width: 100%;
+    justify-content: center;
+  }
+}
