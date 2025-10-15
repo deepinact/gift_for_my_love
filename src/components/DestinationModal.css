@@ -88,6 +88,11 @@
   color: var(--text-strong);
 }
 
+.destination-meta {
+  font-size: 13px;
+  color: #5b21b6;
+}
+
 /* 旅行计划部分 */
 .plans-section {
   margin-top: 32px;

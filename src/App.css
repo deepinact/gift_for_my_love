@@ -6,6 +6,14 @@
   overflow-x: hidden;
 }
 
+.app.auth-only {
+  align-items: center;
+  justify-content: center;
+  background: radial-gradient(circle at top left, rgba(99, 102, 241, 0.35), transparent 55%),
+    radial-gradient(circle at bottom right, rgba(244, 114, 182, 0.35), transparent 55%),
+    #111827;
+}
+
 .map-container {
   flex: 1;
   position: relative;

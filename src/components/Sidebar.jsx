@@ -17,7 +17,10 @@ import {
   Compass,
   Award,
   BookOpen,
-  XCircle
+  XCircle,
+  LogOut,
+  Star,
+  Users
 } from 'lucide-react'
 import './Sidebar.css'
 
@@ -41,7 +44,11 @@ const Sidebar = ({
   memoryLane = [],
   dailyMood,
   onDestinationClick,
-  onAddDestination
+  onAddDestination,
+  session,
+  pinnedAchievements = [],
+  onToggleAchievementPin,
+  onLogout
 }) => {
   const [currentPage, setCurrentPage] = useState(1)
   const [isCollapsed, setIsCollapsed] = useState(typeof window !== 'undefined' ? window.innerWidth < 768 : false)
@@ -119,40 +126,51 @@ const Sidebar = ({
     setActivePanel(null)
   }, [])
 
-  const panelButtons = useMemo(() => [
-    {
-      id: 'inspiration',
-      icon: Sun,
-      title: '灵感空间',
-      subtitle: '当季推荐与愿望聚焦',
-      badge: seasonalHighlights.length + wishlistSpotlights.length,
-      empty: seasonalHighlights.length === 0 && wishlistSpotlights.length === 0
-    },
-    {
-      id: 'plans',
-      icon: CalendarDays,
-      title: '旅程计划',
-      subtitle: '查看下一段旅程安排',
-      badge: upcomingPlans.length,
-      empty: upcomingPlans.length === 0
-    },
-    {
-      id: 'memory',
-      icon: BookOpen,
-      title: '回忆胶囊',
-      subtitle: '重温已走过的故事',
-      badge: memoryLane.length,
-      empty: memoryLane.length === 0
-    },
-    {
-      id: 'achievements',
-      icon: Award,
-      title: '旅程成就',
-      subtitle: '记录我们的旅程里程碑',
-      badge: achievements.filter(item => item.achieved).length,
-      empty: achievements.length === 0
-    }
-  ], [achievements, memoryLane, upcomingPlans, seasonalHighlights, wishlistSpotlights])
+  const panelButtons = useMemo(() => {
+    const completedAchievements = achievements.filter(item => item.status === 'completed').length
+    return [
+      {
+        id: 'inspiration',
+        icon: Sun,
+        title: '灵感空间',
+        subtitle: '当季推荐与愿望聚焦',
+        badge: seasonalHighlights.length + wishlistSpotlights.length,
+        empty: seasonalHighlights.length === 0 && wishlistSpotlights.length === 0
+      },
+      {
+        id: 'plans',
+        icon: CalendarDays,
+        title: '旅程计划',
+        subtitle: '查看下一段旅程安排',
+        badge: upcomingPlans.length,
+        empty: upcomingPlans.length === 0
+      },
+      {
+        id: 'memory',
+        icon: BookOpen,
+        title: '回忆胶囊',
+        subtitle: '重温已走过的故事',
+        badge: memoryLane.length,
+        empty: memoryLane.length === 0
+      },
+      {
+        id: 'achievements',
+        icon: Award,
+        title: '旅程成就',
+        subtitle: '记录我们的旅程里程碑',
+        badge: `${completedAchievements}/${achievements.length || 1}`,
+        empty: achievements.length === 0
+      }
+    ]
+  }, [achievements, memoryLane, upcomingPlans, seasonalHighlights, wishlistSpotlights])
+
+  const pinnedCards = useMemo(() => {
+    if (!Array.isArray(pinnedAchievements) || pinnedAchievements.length === 0) return []
+    return pinnedAchievements
+      .map(id => achievements.find(achievement => achievement.id === id))
+      .filter(Boolean)
+      .slice(0, 4)
+  }, [achievements, pinnedAchievements])
 
   const renderPanelContent = useCallback(() => {
     switch (activePanel) {
@@ -299,14 +317,45 @@ const Sidebar = ({
                   {achievements.map(achievement => (
                     <div
                       key={achievement.id}
-                      className={`overlay-achievement ${achievement.achieved ? 'achieved' : ''}`}
+                      className={`overlay-achievement ${achievement.status}`}
                     >
                       <div className="overlay-achievement-header">
-                        <Award size={16} />
-                        <span>{achievement.achieved ? '已解锁' : '待解锁'}</span>
+                        <div className="overlay-achievement-meta">
+                          <Award size={16} />
+                          <span>
+                            {achievement.status === 'completed'
+                              ? '已解锁'
+                              : achievement.status === 'in-progress'
+                                ? '进行中'
+                                : '待解锁'}
+                          </span>
+                        </div>
+                        {onToggleAchievementPin && (
+                          <button
+                            type="button"
+                            className={`achievement-pin ${achievement.pinned ? 'active' : ''}`}
+                            onClick={() => onToggleAchievementPin(achievement.id)}
+                            aria-label={achievement.pinned ? '取消收藏奖章' : '收藏奖章'}
+                          >
+                            <Star size={16} />
+                          </button>
+                        )}
                       </div>
                       <strong>{achievement.title}</strong>
                       <p>{achievement.description}</p>
+                      <div className="achievement-progress">
+                        <div className="achievement-progress-bar">
+                          <div
+                            className="achievement-progress-fill"
+                            style={{ width: `${achievement.progressPercent}%` }}
+                          />
+                        </div>
+                        <div className="achievement-progress-stats">
+                          <span>{achievement.progressPercent}%</span>
+                          <span>{achievement.current || 0}/{achievement.target}</span>
+                        </div>
+                      </div>
+                      <small className="achievement-reward">奖励：{achievement.reward}</small>
                     </div>
                   ))}
                 </div>
@@ -319,7 +368,7 @@ const Sidebar = ({
       default:
         return null
     }
-  }, [activePanel, achievements, allDestinations, closePanel, handleDestinationClick, memoryLane, seasonalHighlights, upcomingPlans, wishlistSpotlights])
+  }, [activePanel, achievements, allDestinations, closePanel, handleDestinationClick, memoryLane, onToggleAchievementPin, seasonalHighlights, upcomingPlans, wishlistSpotlights])
 
   return (
     <>
@@ -339,6 +388,28 @@ const Sidebar = ({
           <h1>全球旅行地图</h1>
           <p>记录我们的旅行足迹</p>
         </div>
+
+        {session && (
+          <div className="account-section">
+            <div className="account-info">
+              <span className="account-label">双人旅伴</span>
+              <div className="account-names">
+                <Users size={18} />
+                <h2>
+                  <span>{session.myUsername}</span>
+                  <span className="ampersand">&</span>
+                  <span>{session.partnerUsername}</span>
+                </h2>
+              </div>
+              <p>共享灵感、计划与回忆，随时同步。</p>
+            </div>
+            {onLogout && (
+              <button type="button" className="account-logout" onClick={onLogout}>
+                <LogOut size={16} /> 安全退出
+              </button>
+            )}
+          </div>
+        )}
 
         <div className="search-section">
           <div className="search-box">
@@ -394,6 +465,28 @@ const Sidebar = ({
             <span className="stat-progress-text">环球计划已完成 {stats.progress}%</span>
           </div>
         </div>
+
+        {pinnedCards.length > 0 && (
+          <div className="pinned-section">
+            <div className="pinned-header">
+              <Award size={16} />
+              <h3>奖章陈列柜</h3>
+            </div>
+            <div className="pinned-grid">
+              {pinnedCards.map(card => (
+                <button
+                  key={card.id}
+                  type="button"
+                  className={`pinned-card ${card.status}`}
+                  onClick={() => openPanel('achievements')}
+                >
+                  <span className="pinned-card-title">{card.title}</span>
+                  <span className="pinned-card-progress">{card.progressPercent}%</span>
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
 
         <div className="filter-section">
           <h3><Filter className="filter-icon" /> 筛选</h3>
