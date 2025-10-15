@@ -315,37 +315,41 @@ const Sidebar = ({
               {achievements.length > 0 ? (
                 <div className="overlay-achievements">
                   {achievements.map(achievement => (
-                    <div
-                      key={achievement.id}
-                      className={`overlay-achievement ${achievement.status}`}
-                    >
-                      <div className="overlay-achievement-header">
-                        <div className="overlay-achievement-meta">
-                          <Award size={16} />
-                          <span>
-                            {achievement.status === 'completed'
-                              ? '已解锁'
-                              : achievement.status === 'in-progress'
-                                ? '进行中'
-                                : '待解锁'}
-                          </span>
-                        </div>
-                        {onToggleAchievementPin && (
-                          <button
-                            type="button"
-                            className={`achievement-pin ${achievement.pinned ? 'active' : ''}`}
-                            onClick={() => onToggleAchievementPin(achievement.id)}
-                            aria-label={achievement.pinned ? '取消收藏奖章' : '收藏奖章'}
-                          >
-                            <Star size={16} />
-                          </button>
-                        )}
+                  <div
+                    key={achievement.id}
+                    className={`overlay-achievement ${achievement.status}`}
+                  >
+                    <div className="overlay-achievement-header">
+                      <div className="overlay-achievement-meta">
+                        <Award size={16} />
+                        <span>
+                          {achievement.status === 'completed'
+                            ? '已解锁'
+                            : achievement.status === 'in-progress'
+                              ? '进行中'
+                              : '待解锁'}
+                        </span>
                       </div>
-                      <strong>{achievement.title}</strong>
-                      <p>{achievement.description}</p>
-                      <div className="achievement-progress">
-                        <div className="achievement-progress-bar">
-                          <div
+                      {onToggleAchievementPin && (
+                        <button
+                          type="button"
+                          className={`achievement-pin ${achievement.pinned ? 'active' : ''}`}
+                          onClick={() => onToggleAchievementPin(achievement.id)}
+                          aria-label={achievement.pinned ? '取消收藏奖章' : '收藏奖章'}
+                        >
+                          <Star size={16} />
+                        </button>
+                      )}
+                    </div>
+                    <div className="overlay-achievement-body">
+                      <h5 className="achievement-title">{achievement.title}</h5>
+                      <div className="achievement-caption">
+                        <span>{achievement.description}</span>
+                      </div>
+                    </div>
+                    <div className="achievement-progress">
+                      <div className="achievement-progress-bar">
+                        <div
                             className="achievement-progress-fill"
                             style={{ width: `${achievement.progressPercent}%` }}
                           />
