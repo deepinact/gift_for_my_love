@@ -126,6 +126,7 @@ function App() {
   const [authLoading, setAuthLoading] = useState(false)
   const [authGlobalError, setAuthGlobalError] = useState('')
   const [pinnedAchievements, setPinnedAchievements] = useState([])
+  const [connectionProgress, setConnectionProgress] = useState({})
   const [selectedDestination, setSelectedDestination] = useState(null)
   const [showModal, setShowModal] = useState(false)
   const [destinationsData, setDestinationsData] = useState(() => cloneDestinationsList(destinations))
@@ -186,6 +187,7 @@ function App() {
     if (!session) {
       setDestinationsData(cloneDestinationsList(destinations))
       setPinnedAchievements([])
+      setConnectionProgress({})
       return
     }
 
@@ -232,6 +234,22 @@ function App() {
     } catch {
       setPinnedAchievements([])
     }
+
+    try {
+      const savedConnectionRaw = localStorage.getItem(`${session.storageKey}_connection_prompts`)
+      if (savedConnectionRaw) {
+        const parsed = JSON.parse(savedConnectionRaw)
+        if (parsed && typeof parsed === 'object') {
+          setConnectionProgress(parsed)
+        } else {
+          setConnectionProgress({})
+        }
+      } else {
+        setConnectionProgress({})
+      }
+    } catch {
+      setConnectionProgress({})
+    }
   }, [session])
 
   useEffect(() => {
@@ -255,6 +273,17 @@ function App() {
       console.warn('保存奖章收藏失败', error)
     }
   }, [pinnedAchievements, session, storageKey])
+
+  useEffect(() => {
+    if (!session || !storageKey) return
+    if (typeof window === 'undefined') return
+
+    try {
+      localStorage.setItem(`${storageKey}_connection_prompts`, JSON.stringify(connectionProgress))
+    } catch (error) {
+      console.warn('保存心动互动状态失败', error)
+    }
+  }, [connectionProgress, session, storageKey])
 
   useEffect(() => {
     setSelectedDestination(null)
@@ -508,6 +537,18 @@ function App() {
     })
   }, [])
 
+  const toggleConnectionPrompt = useCallback((promptId) => {
+    setConnectionProgress((prev) => {
+      const next = { ...prev }
+      if (next[promptId]) {
+        delete next[promptId]
+      } else {
+        next[promptId] = true
+      }
+      return next
+    })
+  }, [])
+
   // 使用useMemo优化统计数据
   const stats = useMemo(() => {
     const visitedCount = destinationsData.filter(dest => dest.visited).length
@@ -719,6 +760,100 @@ function App() {
     })
   }, [session, travelAchievements])
 
+  const baseConnectionPrompts = useMemo(() => {
+    if (!session) return []
+
+    const partnerName = session.partnerUsername || '旅伴'
+    const highlight = seasonalHighlights[0]
+    const wish = wishlistSpotlights[0]
+    const memory = memoryLane[0]
+    const nextPlan = upcomingPlans[0]
+
+    const prompts = [
+      {
+        id: 'share-wish',
+        title: '心愿交换',
+        description: `各自挑一个愿望清单里的地点，告诉彼此为什么想去那里，并在备注里写下对方的心动理由。`,
+        microCopy: '互相分享一个愿望地，并记录对方的理由。'
+      },
+      {
+        id: 'map-toast',
+        title: '地图庆祝',
+        description: `在地图上放大已访问的任意地点，重温一段回忆，并新增一句彼此想说的话。`,
+        microCopy: '挑一个已访问地点，写下一句新的祝福。',
+        disabled: stats.visitedCount === 0
+      },
+      {
+        id: 'memory-quiz',
+        title: '回忆问答',
+        description: memory
+          ? `回忆一下在「${memory.name}」最打动你的一幕，将答案写进目的地备注，共同留下甜蜜答案。`
+          : '回想最近的旅行，用一句话记录彼此最难忘的瞬间。',
+        microCopy: memory
+          ? `为「${memory.name}」写下一句新的记忆。`
+          : '写下你们最近旅程里最难忘的瞬间。'
+      },
+      {
+        id: 'next-surprise',
+        title: '下一站惊喜',
+        description: nextPlan
+          ? `围绕「${nextPlan.destinationName}」计划一个小惊喜，并把它添加进行程备注中，保留神秘感。`
+          : '挑一个想去的地方，约定一个惊喜环节并记录在行程备注里。',
+        microCopy: nextPlan
+          ? `为「${nextPlan.destinationName}」准备一个小惊喜。`
+          : '为下一段旅程约定一个惊喜。'
+      },
+      {
+        id: 'seasonal-stroll',
+        title: '当季想象',
+        description: highlight
+          ? `想象和${partnerName}一同走在「${highlight.name}」的最佳季节，互相描述想做的第一件事。`
+          : `互相挑选一处目的地，描述到达后想做的第一件事，让画面先在心里发生。`,
+        microCopy: highlight
+          ? `聊聊去「${highlight.name}」时最想做的第一件事。`
+          : '描述抵达心仪目的地时最想做的第一件事。'
+      },
+      {
+        id: 'wish-keeper',
+        title: '心愿守护',
+        description: wish
+          ? `为「${wish.name}」写下一段互相鼓励的话，提醒彼此一定要去实现这段旅程。`
+          : '挑一个心愿地，写下一段互相鼓励的话，让它成为旅程的动力。',
+        microCopy: wish
+          ? `为「${wish.name}」写下一段互相鼓励的话。`
+          : '为一个心愿地写下互相鼓励的话。'
+      }
+    ]
+
+    return prompts.filter((prompt) => !prompt.disabled)
+  }, [memoryLane, upcomingPlans, seasonalHighlights, session, stats.visitedCount, wishlistSpotlights])
+
+  useEffect(() => {
+    if (!session) return
+    setConnectionProgress((prev) => {
+      const validIds = new Set(baseConnectionPrompts.map((prompt) => prompt.id))
+      const filtered = Object.keys(prev).reduce((acc, key) => {
+        if (validIds.has(key)) {
+          acc[key] = true
+        }
+        return acc
+      }, {})
+      if (Object.keys(filtered).length === Object.keys(prev).length) {
+        return prev
+      }
+      return filtered
+    })
+  }, [baseConnectionPrompts, session])
+
+  const connectionPrompts = useMemo(() => {
+    return baseConnectionPrompts.map((prompt) => ({
+      ...prompt,
+      completed: Boolean(connectionProgress[prompt.id])
+    }))
+  }, [baseConnectionPrompts, connectionProgress])
+
+  const connectionHighlights = useMemo(() => connectionPrompts.slice(0, 2), [connectionPrompts])
+
   const visitedPath = useMemo(() => {
     const visited = destinationsData.filter((destination) => destination.visited)
     return visited.map((destination) => destination.coordinates)
@@ -743,6 +878,7 @@ function App() {
   ), [handleMarkerClick])
 
   const heroHighlight = seasonalHighlights[0] || wishlistSpotlights[0] || null
+  const bondNudge = connectionPrompts.find((prompt) => !prompt.completed) || connectionPrompts[0] || null
 
   if (!isAuthReady) {
     return null
@@ -786,6 +922,9 @@ function App() {
         session={session}
         pinnedAchievements={pinnedAchievements}
         onToggleAchievementPin={toggleAchievementPin}
+        connectionPrompts={connectionPrompts}
+        connectionHighlights={connectionHighlights}
+        onToggleConnectionPrompt={toggleConnectionPrompt}
         onLogout={handleLogout}
       />
 
@@ -920,6 +1059,14 @@ function App() {
                 {upcomingPlans[0].date && (
                   <small className="overlay-subtle">出发日 {upcomingPlans[0].date}</small>
                 )}
+              </div>
+            )}
+
+            {bondNudge && (
+              <div className="overlay-bond">
+                <span className="overlay-badge tertiary">心动互动</span>
+                <p>{bondNudge.title}</p>
+                <small className="overlay-subtle">{bondNudge.microCopy}</small>
               </div>
             )}
           </aside>

@@ -20,7 +20,8 @@ import {
   XCircle,
   LogOut,
   Star,
-  Users
+  Users,
+  HeartHandshake
 } from 'lucide-react'
 import './Sidebar.css'
 
@@ -48,6 +49,9 @@ const Sidebar = ({
   session,
   pinnedAchievements = [],
   onToggleAchievementPin,
+  connectionPrompts = [],
+  connectionHighlights = [],
+  onToggleConnectionPrompt,
   onLogout
 }) => {
   const [currentPage, setCurrentPage] = useState(1)
@@ -126,6 +130,11 @@ const Sidebar = ({
     setActivePanel(null)
   }, [])
 
+  const completedBondingCount = useMemo(
+    () => connectionPrompts.filter(item => item.completed).length,
+    [connectionPrompts]
+  )
+
   const panelButtons = useMemo(() => {
     const completedAchievements = achievements.filter(item => item.status === 'completed').length
     return [
@@ -160,9 +169,17 @@ const Sidebar = ({
         subtitle: '记录我们的旅程里程碑',
         badge: `${completedAchievements}/${achievements.length || 1}`,
         empty: achievements.length === 0
+      },
+      {
+        id: 'bonding',
+        icon: HeartHandshake,
+        title: '心动互动',
+        subtitle: '完成双人的甜蜜小任务',
+        badge: `${completedBondingCount}/${connectionPrompts.length || 1}`,
+        empty: connectionPrompts.length === 0
       }
     ]
-  }, [achievements, memoryLane, upcomingPlans, seasonalHighlights, wishlistSpotlights])
+  }, [achievements, completedBondingCount, connectionPrompts, memoryLane, upcomingPlans, seasonalHighlights, wishlistSpotlights])
 
   const pinnedCards = useMemo(() => {
     if (!Array.isArray(pinnedAchievements) || pinnedAchievements.length === 0) return []
@@ -375,10 +392,44 @@ const Sidebar = ({
             </div>
           </div>
         )
+      case 'bonding':
+        return (
+          <div className="overlay-section">
+            <div className="overlay-block">
+              <div className="overlay-block-header">
+                <HeartHandshake size={16} />
+                <h4>心动互动</h4>
+                <span>{completedBondingCount}/{connectionPrompts.length}</span>
+              </div>
+              {connectionPrompts.length > 0 ? (
+                <ul className="overlay-bonding-list">
+                  {connectionPrompts.map(prompt => (
+                    <li key={prompt.id}>
+                      <button
+                        type="button"
+                        className={`bonding-card ${prompt.completed ? 'completed' : ''}`}
+                        onClick={() => onToggleConnectionPrompt && onToggleConnectionPrompt(prompt.id)}
+                      >
+                        <div className="bonding-card-header">
+                          <strong>{prompt.title}</strong>
+                          <span className="bonding-status">{prompt.completed ? '已完成' : '待完成'}</span>
+                        </div>
+                        <p>{prompt.description}</p>
+                        <span className="bonding-card-tip">点击标记为{prompt.completed ? '未完成' : '完成'}</span>
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              ) : (
+                <p className="overlay-empty">稍后我们会为你们准备新的互动灵感。</p>
+              )}
+            </div>
+          </div>
+        )
       default:
         return null
     }
-  }, [activePanel, achievements, allDestinations, closePanel, handleDestinationClick, memoryLane, onToggleAchievementPin, seasonalHighlights, upcomingPlans, wishlistSpotlights])
+  }, [activePanel, achievements, allDestinations, closePanel, completedBondingCount, connectionPrompts, handleDestinationClick, memoryLane, onToggleAchievementPin, onToggleConnectionPrompt, seasonalHighlights, upcomingPlans, wishlistSpotlights])
 
   return (
     <>
@@ -442,6 +493,37 @@ const Sidebar = ({
                 <p className="mood-message">{dailyMood.message}</p>
                 <span className="mood-tip">今日提案：{dailyMood.tip}</span>
               </div>
+            </div>
+          </div>
+        )}
+
+        {connectionHighlights.length > 0 && (
+          <div className="bonding-preview">
+            <div className="bonding-preview-header">
+              <div className="bonding-preview-title">
+                <HeartHandshake size={18} />
+                <div>
+                  <h3>心动互动</h3>
+                  <span>{completedBondingCount}/{connectionPrompts.length || 1} 已点亮</span>
+                </div>
+              </div>
+              <button type="button" onClick={() => openPanel('bonding')}>
+                查看全部
+              </button>
+            </div>
+            <div className="bonding-preview-grid">
+              {connectionHighlights.map(prompt => (
+                <button
+                  key={prompt.id}
+                  type="button"
+                  className={`bonding-preview-card ${prompt.completed ? 'completed' : ''}`}
+                  onClick={() => onToggleConnectionPrompt && onToggleConnectionPrompt(prompt.id)}
+                >
+                  <span className="bonding-preview-status">{prompt.completed ? '已完成' : '点击完成'}</span>
+                  <strong>{prompt.title}</strong>
+                  <p>{prompt.microCopy}</p>
+                </button>
+              ))}
             </div>
           </div>
         )}
