@@ -317,7 +317,7 @@ const Sidebar = ({
                   {achievements.map(achievement => {
                     const statusLabel =
                       achievement.status === 'completed'
-                        ? '已完成'
+                        ? '已点亮'
                         : achievement.status === 'in-progress'
                           ? '进行中'
                           : '待解锁'
@@ -328,12 +328,14 @@ const Sidebar = ({
                         className={`achievement-card ${achievement.status}`}
                       >
                         <header className="achievement-card-header">
-                          <div className="achievement-card-icon">
-                            <Award size={18} />
-                          </div>
-                          <div className="achievement-card-title">
-                            <h5>{achievement.title}</h5>
-                            <span>{statusLabel}</span>
+                          <div className="achievement-card-badge">
+                            <span className="achievement-medal">
+                              <Award size={18} />
+                            </span>
+                            <div className="achievement-card-headings">
+                              <h5>{achievement.title}</h5>
+                              <span className="achievement-status-tag">{statusLabel}</span>
+                            </div>
                           </div>
                           {onToggleAchievementPin && (
                             <button
@@ -359,7 +361,10 @@ const Sidebar = ({
                             <span>{achievement.current || 0}/{achievement.target}</span>
                           </div>
                         </div>
-                        <div className="achievement-card-reward">奖励 · {achievement.reward}</div>
+                        <div className="achievement-card-reward">
+                          <span>奖励</span>
+                          <strong>{achievement.reward}</strong>
+                        </div>
                       </article>
                     )
                   })}

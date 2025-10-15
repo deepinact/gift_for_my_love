@@ -790,104 +790,99 @@ function App() {
       />
 
       <div className="map-container">
-        <div className="map-grid">
-          <div className="map-stage">
-            <MapContainer
-              className="map-canvas"
-              center={[20, 0]}
-              zoom={2}
-              // 适中的性能优化
-              preferCanvas={true}
-              zoomControl={false} // 禁用默认的左上角缩放控件
-              attributionControl={false}
-              doubleClickZoom={false}
-              boxZoom={false}
-              keyboard={false}
-              wheelPxPerZoomLevel={120}
-              touchZoom={true}
-              fadeAnimation={false}
-              zoomAnimation={false}
-            >
-              {/* 自定义右侧缩放控件 */}
-              <CustomZoomControl />
-              {/* 主要地图源 */}
-              <TileLayer
-                url="https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png"
-                attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
-                maxZoom={14}
-                minZoom={2}
-                updateWhenZooming={false}
-                updateWhenIdle={true}
-                tileSize={256}
-                keepBuffer={2}
+        <div className="map-stage">
+          <MapContainer
+            className="map-canvas"
+            center={[20, 0]}
+            zoom={2}
+            // 适中的性能优化
+            preferCanvas={true}
+            zoomControl={false} // 禁用默认的左上角缩放控件
+            attributionControl={false}
+            doubleClickZoom={false}
+            boxZoom={false}
+            keyboard={false}
+            wheelPxPerZoomLevel={120}
+            touchZoom={true}
+            fadeAnimation={false}
+            zoomAnimation={false}
+          >
+            {/* 自定义右侧缩放控件 */}
+            <CustomZoomControl />
+            {/* 主要地图源 */}
+            <TileLayer
+              url="https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png"
+              attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
+              maxZoom={14}
+              minZoom={2}
+              updateWhenZooming={false}
+              updateWhenIdle={true}
+              tileSize={256}
+              keepBuffer={2}
+            />
+
+            {/* 备用地图源1 - 如果主要源失败 */}
+            <TileLayer
+              url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+              attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
+              maxZoom={14}
+              minZoom={2}
+              updateWhenZooming={false}
+              updateWhenIdle={true}
+              tileSize={256}
+              keepBuffer={2}
+              opacity={0.8}
+              zIndex={-1}
+            />
+
+            {/* 备用地图源2 - 最轻量 */}
+            <TileLayer
+              url="https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png"
+              attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
+              maxZoom={12}
+              minZoom={2}
+              updateWhenZooming={false}
+              updateWhenIdle={true}
+              tileSize={256}
+              keepBuffer={1}
+              opacity={0.6}
+              zIndex={-2}
+            />
+
+            {filteredDestinationsMemo.map(destination => (
+              <Marker
+                key={destination.id}
+                position={destination.coordinates}
+                icon={destination.visited ? visitedIcon : customIcon}
+                eventHandlers={{
+                  click: () => handleMarkerClick(destination)
+                }}
+              >
+                <Popup>{renderPopupContent(destination)}</Popup>
+              </Marker>
+            ))}
+
+            {visitedPath.length > 1 && (
+              <Polyline
+                positions={visitedPath}
+                pathOptions={{
+                  color: '#f472b6',
+                  weight: 3,
+                  opacity: 0.8,
+                  dashArray: '12 12',
+                  lineCap: 'round',
+                  lineJoin: 'round'
+                }}
               />
+            )}
+          </MapContainer>
 
-              {/* 备用地图源1 - 如果主要源失败 */}
-              <TileLayer
-                url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-                attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
-                maxZoom={14}
-                minZoom={2}
-                updateWhenZooming={false}
-                updateWhenIdle={true}
-                tileSize={256}
-                keepBuffer={2}
-                opacity={0.8}
-                zIndex={-1}
-              />
-
-              {/* 备用地图源2 - 最轻量 */}
-              <TileLayer
-                url="https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png"
-                attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
-                maxZoom={12}
-                minZoom={2}
-                updateWhenZooming={false}
-                updateWhenIdle={true}
-                tileSize={256}
-                keepBuffer={1}
-                opacity={0.6}
-                zIndex={-2}
-              />
-
-              {filteredDestinationsMemo.map(destination => (
-                <Marker
-                  key={destination.id}
-                  position={destination.coordinates}
-                  icon={destination.visited ? visitedIcon : customIcon}
-                  eventHandlers={{
-                    click: () => handleMarkerClick(destination)
-                  }}
-                >
-                  <Popup>{renderPopupContent(destination)}</Popup>
-                </Marker>
-              ))}
-
-              {visitedPath.length > 1 && (
-                <Polyline
-                  positions={visitedPath}
-                  pathOptions={{
-                    color: '#f472b6',
-                    weight: 3,
-                    opacity: 0.8,
-                    dashArray: '12 12',
-                    lineCap: 'round',
-                    lineJoin: 'round'
-                  }}
-                />
-              )}
-            </MapContainer>
-          </div>
-
-          <section className="map-summary-card" aria-label="旅程概览">
+          <aside className="map-progress-dock" aria-label="旅程概览">
             <div className="map-overlay-header">
-              <div>
-                <span className="overlay-eyebrow">旅程进度</span>
-                <h4>{stats.progress}% 完成度</h4>
-              </div>
-              <div className="overlay-counts">
-                <span>{stats.visitedCount}/{stats.total}</span>
-                <small>已访问</small>
+              <span className="overlay-eyebrow">旅程进度</span>
+              <div className="map-progress-score">
+                <strong>{stats.progress}%</strong>
+                <span>{stats.visitedCount}/{stats.total} 已访问</span>
               </div>
             </div>
             <div className="overlay-progress">
@@ -927,7 +922,7 @@ function App() {
                 )}
               </div>
             )}
-          </section>
+          </aside>
         </div>
       </div>
 
