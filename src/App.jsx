@@ -138,6 +138,7 @@ function App() {
   const [showAddModal, setShowAddModal] = useState(false)
   const [sharedPromise, setSharedPromise] = useState(null)
   const [showPromiseModal, setShowPromiseModal] = useState(false)
+  const [showMapInsights, setShowMapInsights] = useState(false)
 
   const activeStorageKey = useMemo(() => (session ? session.storageKey : null), [session])
 
@@ -193,6 +194,7 @@ function App() {
       setConnectionProgress({})
       setSharedPromise(null)
       setShowPromiseModal(false)
+      setShowMapInsights(false)
       return
     }
 
@@ -330,6 +332,21 @@ function App() {
     setShowModal(false)
     setShowAddModal(false)
   }, [session])
+
+  useEffect(() => {
+    if (!showMapInsights) return undefined
+
+    const handleKeyDown = (event) => {
+      if (event.key === 'Escape') {
+        setShowMapInsights(false)
+      }
+    }
+
+    window.addEventListener('keydown', handleKeyDown)
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown)
+    }
+  }, [showMapInsights])
 
   const baseDestinationIdSet = useMemo(() => new Set(destinations.map(dest => dest.id)), [])
 
@@ -1083,7 +1100,42 @@ function App() {
             )}
           </MapContainer>
 
-          <aside className="map-progress-dock" aria-label="旅程概览">
+          <div className="map-insights-trigger-wrap">
+            <button
+              type="button"
+              className="map-insights-trigger"
+              onClick={() => setShowMapInsights(true)}
+              aria-haspopup="dialog"
+              aria-label="打开旅程概览"
+            >
+              <span className="overlay-eyebrow">环球进度</span>
+              <span className="map-insights-trigger-value">{stats.progress}%</span>
+            </button>
+          </div>
+        </div>
+      </div>
+
+      {showMapInsights && (
+        <div
+          className="map-insights-overlay"
+          role="dialog"
+          aria-modal="true"
+          aria-label="旅程概览"
+          onClick={(event) => {
+            if (event.target === event.currentTarget) {
+              setShowMapInsights(false)
+            }
+          }}
+        >
+          <div className="map-insights-panel">
+            <button
+              type="button"
+              className="map-insights-close"
+              onClick={() => setShowMapInsights(false)}
+              aria-label="关闭旅程概览"
+            >
+              ×
+            </button>
             <div className="map-dock-progress">
               <div className="map-dock-progress-head">
                 <span className="overlay-eyebrow">环球进度</span>
@@ -1143,14 +1195,17 @@ function App() {
               <button
                 type="button"
                 className="map-promise-action"
-                onClick={() => setShowPromiseModal(true)}
+                onClick={() => {
+                  setShowPromiseModal(true)
+                  setShowMapInsights(false)
+                }}
               >
                 编辑
               </button>
             </div>
-          </aside>
+          </div>
         </div>
-      </div>
+      )}
 
       {showModal && selectedDestination && (
         <DestinationModal
