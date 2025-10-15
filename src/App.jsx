@@ -7,6 +7,7 @@ import AddDestinationModal from './components/AddDestinationModal'
 import DestinationModal from './components/DestinationModal'
 import MusicPlayer from './components/MusicPlayer'
 import CoupleAuthOverlay from './components/CoupleAuthOverlay'
+import CouplePromiseModal from './components/CouplePromiseModal'
 import './App.css'
 
 const parseMonthRanges = (text) => {
@@ -135,6 +136,202 @@ function App() {
   const [showVisited, setShowVisited] = useState(false)
   const [showWishlist, setShowWishlist] = useState(false)
   const [showAddModal, setShowAddModal] = useState(false)
+  const [sharedPromise, setSharedPromise] = useState(null)
+  const [showPromiseModal, setShowPromiseModal] = useState(false)
+
+  const storageKey = session ? session.storageKey : null
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+
+    try {
+      const accountsRaw = localStorage.getItem(ACCOUNTS_KEY)
+      let accounts = []
+      if (accountsRaw) {
+        try {
+          const parsed = JSON.parse(accountsRaw)
+          if (Array.isArray(parsed)) {
+            accounts = parsed
+          }
+        } catch {}
+      }
+
+      const activeRaw = localStorage.getItem(ACTIVE_SESSION_KEY)
+      if (activeRaw) {
+        try {
+          const active = JSON.parse(activeRaw)
+          if (active?.accountId) {
+            const account = accounts.find((item) => item.id === active.accountId)
+            if (account) {
+              const members = Array.isArray(account.members) ? account.members : []
+              const activeMember = members.find((member) => member.normalized === active.activeMember) || members[0]
+              const partnerMember = members.find((member) => member.normalized !== activeMember?.normalized) || members[1] || members[0]
+              if (activeMember) {
+                setSession({
+                  accountId: account.id,
+                  myUsername: activeMember.displayName,
+                  partnerUsername: partnerMember?.displayName || activeMember.displayName,
+                  members: members.length ? members.map((member) => member.displayName) : undefined,
+                  storageKey: account.storageKey
+                })
+              }
+            }
+          }
+        } catch {}
+      }
+    } catch (error) {
+      console.warn('读取账号信息失败', error)
+    } finally {
+      setIsAuthReady(true)
+    }
+  }, [])
+
+  useEffect(() => {
+    if (!session) {
+      setDestinationsData(cloneDestinationsList(destinations))
+      setPinnedAchievements([])
+      setConnectionProgress({})
+      setSharedPromise(null)
+      setShowPromiseModal(false)
+      return
+    }
+
+    if (typeof window === 'undefined') return
+
+    let nextData = cloneDestinationsList(destinations)
+    try {
+      const stored = localStorage.getItem(`${session.storageKey}_destinations_state`)
+      if (stored) {
+        const parsed = JSON.parse(stored)
+        if (Array.isArray(parsed) && parsed.length) {
+          nextData = cloneDestinationsList(parsed)
+        }
+      } else {
+        const legacy = localStorage.getItem('custom_destinations')
+        if (legacy) {
+          try {
+            const legacyParsed = JSON.parse(legacy)
+            if (Array.isArray(legacyParsed) && legacyParsed.length) {
+              nextData = cloneDestinationsList([...destinations, ...legacyParsed])
+            }
+          } catch {}
+        }
+      }
+    } catch (error) {
+      console.warn('加载目的地数据失败', error)
+      nextData = cloneDestinationsList(destinations)
+    }
+
+    setDestinationsData(nextData)
+
+    try {
+      const savedPinsRaw = localStorage.getItem(`${session.storageKey}_pinned_achievements`)
+      if (savedPinsRaw) {
+        const parsedPins = JSON.parse(savedPinsRaw)
+        if (Array.isArray(parsedPins)) {
+          setPinnedAchievements(parsedPins)
+        } else {
+          setPinnedAchievements([])
+        }
+      } else {
+        setPinnedAchievements([])
+      }
+    } catch {
+      setPinnedAchievements([])
+    }
+
+    try {
+      const savedConnectionRaw = localStorage.getItem(`${session.storageKey}_connection_prompts`)
+      if (savedConnectionRaw) {
+        const parsed = JSON.parse(savedConnectionRaw)
+        if (parsed && typeof parsed === 'object') {
+          setConnectionProgress(parsed)
+        } else {
+          setConnectionProgress({})
+        }
+      } else {
+        setConnectionProgress({})
+      }
+    } catch {
+      setConnectionProgress({})
+    }
+
+    try {
+      const savedPromiseRaw = localStorage.getItem(`${session.storageKey}_shared_promise`)
+      if (savedPromiseRaw) {
+        const parsedPromise = JSON.parse(savedPromiseRaw)
+        if (parsedPromise && typeof parsedPromise === 'object') {
+          setSharedPromise({
+            mantra: parsedPromise.mantra || '',
+            ritual: parsedPromise.ritual || '',
+            savedAt: parsedPromise.savedAt || null
+          })
+        } else {
+          setSharedPromise(null)
+        }
+      } else {
+        setSharedPromise(null)
+      }
+    } catch {
+      setSharedPromise(null)
+    }
+  }, [session])
+
+  useEffect(() => {
+    if (!session || !storageKey) return
+    if (typeof window === 'undefined') return
+
+    try {
+      localStorage.setItem(`${storageKey}_destinations_state`, JSON.stringify(destinationsData))
+    } catch (error) {
+      console.warn('保存目的地数据失败', error)
+    }
+  }, [destinationsData, session, storageKey])
+
+  useEffect(() => {
+    if (!session || !storageKey) return
+    if (typeof window === 'undefined') return
+
+    try {
+      localStorage.setItem(`${storageKey}_pinned_achievements`, JSON.stringify(pinnedAchievements))
+    } catch (error) {
+      console.warn('保存奖章收藏失败', error)
+    }
+  }, [pinnedAchievements, session, storageKey])
+
+  useEffect(() => {
+    if (!session || !storageKey) return
+    if (typeof window === 'undefined') return
+
+    try {
+      localStorage.setItem(`${storageKey}_connection_prompts`, JSON.stringify(connectionProgress))
+    } catch (error) {
+      console.warn('保存心动互动状态失败', error)
+    }
+  }, [connectionProgress, session, storageKey])
+
+  useEffect(() => {
+    if (!session || !storageKey) return
+    if (typeof window === 'undefined') return
+
+    try {
+      if (!sharedPromise || (!sharedPromise.mantra && !sharedPromise.ritual)) {
+        localStorage.removeItem(`${storageKey}_shared_promise`)
+      } else {
+        localStorage.setItem(`${storageKey}_shared_promise`, JSON.stringify(sharedPromise))
+      }
+    } catch (error) {
+      console.warn('保存旅程约定失败', error)
+    }
+  }, [sharedPromise, session, storageKey])
+
+  useEffect(() => {
+    setSelectedDestination(null)
+    setShowModal(false)
+    setShowAddModal(false)
+  }, [session])
+
+  const baseDestinationIds = useMemo(() => new Set(destinations.map(dest => dest.id)), [])
 
   const storageKey = session ? session.storageKey : null
 
@@ -521,7 +718,32 @@ function App() {
     setSelectedDestination(null)
     setShowModal(false)
     setShowAddModal(false)
+    setSharedPromise(null)
+    setShowPromiseModal(false)
     setAuthGlobalError('')
+  }, [])
+
+  const handleSavePromise = useCallback(({ mantra, ritual }) => {
+    const nextMantra = (mantra || '').trim()
+    const nextRitual = (ritual || '').trim()
+
+    if (!nextMantra && !nextRitual) {
+      setSharedPromise(null)
+      setShowPromiseModal(false)
+      return
+    }
+
+    setSharedPromise({
+      mantra: nextMantra,
+      ritual: nextRitual,
+      savedAt: new Date().toISOString()
+    })
+    setShowPromiseModal(false)
+  }, [])
+
+  const handleRemovePromise = useCallback(() => {
+    setSharedPromise(null)
+    setShowPromiseModal(false)
   }, [])
 
   const toggleAchievementPin = useCallback((achievementId) => {
@@ -925,6 +1147,8 @@ function App() {
         connectionPrompts={connectionPrompts}
         connectionHighlights={connectionHighlights}
         onToggleConnectionPrompt={toggleConnectionPrompt}
+        sharedPromise={sharedPromise}
+        onEditPromise={() => setShowPromiseModal(true)}
         onLogout={handleLogout}
       />
 
@@ -1017,28 +1241,23 @@ function App() {
           </MapContainer>
 
           <aside className="map-progress-dock" aria-label="旅程概览">
-            <div className="map-overlay-header">
-              <span className="overlay-eyebrow">旅程进度</span>
-              <div className="map-progress-score">
+            <div className="map-dock-progress">
+              <div className="map-dock-progress-head">
+                <span className="overlay-eyebrow">环球进度</span>
                 <strong>{stats.progress}%</strong>
-                <span>{stats.visitedCount}/{stats.total} 已访问</span>
               </div>
-            </div>
-            <div className="overlay-progress">
-              <div className="overlay-progress-bar">
-                <div
-                  className="overlay-progress-fill"
-                  style={{ width: `${stats.progress}%` }}
-                />
+              <div className="map-dock-meter">
+                <span style={{ width: `${stats.progress}%` }} />
               </div>
-              <div className="overlay-progress-meta">
+              <div className="map-dock-metrics">
+                <span>已访问 {stats.visitedCount}</span>
                 <span>愿望 {stats.wishlistCount}</span>
                 <span>计划 {stats.plannedCount}</span>
               </div>
             </div>
 
             {heroHighlight && (
-              <div className="overlay-highlight">
+              <div className="map-dock-card">
                 <span className="overlay-badge">今日灵感</span>
                 <p>
                   {heroHighlight.name}
@@ -1050,12 +1269,12 @@ function App() {
             )}
 
             {upcomingPlans.length > 0 && (
-              <div className="overlay-next">
+              <div className="map-dock-card">
                 <span className="overlay-badge secondary">下一站</span>
-                <div className="overlay-next-body">
-                  <strong>{upcomingPlans[0].destinationName}</strong>
+                <p className="map-card-title">
+                  {upcomingPlans[0].destinationName}
                   {upcomingPlans[0].title && <span> · {upcomingPlans[0].title}</span>}
-                </div>
+                </p>
                 {upcomingPlans[0].date && (
                   <small className="overlay-subtle">出发日 {upcomingPlans[0].date}</small>
                 )}
@@ -1063,12 +1282,29 @@ function App() {
             )}
 
             {bondNudge && (
-              <div className="overlay-bond">
+              <div className="map-dock-card gentle">
                 <span className="overlay-badge tertiary">心动互动</span>
-                <p>{bondNudge.title}</p>
+                <p className="map-card-title">{bondNudge.title}</p>
                 <small className="overlay-subtle">{bondNudge.microCopy}</small>
               </div>
             )}
+
+            <div className="map-promise-card">
+              <div className="map-promise-text">
+                <span className="map-promise-label">旅程约定</span>
+                <p>{sharedPromise?.mantra || '写下一句属于你们的旅程宣言。'}</p>
+                {sharedPromise?.ritual && (
+                  <small className="overlay-subtle">下一步：{sharedPromise.ritual}</small>
+                )}
+              </div>
+              <button
+                type="button"
+                className="map-promise-action"
+                onClick={() => setShowPromiseModal(true)}
+              >
+                编辑
+              </button>
+            </div>
           </aside>
         </div>
       </div>
@@ -1087,6 +1323,15 @@ function App() {
           categories={categories}
           onClose={() => setShowAddModal(false)}
           onSubmit={handleAddDestination}
+        />
+      )}
+
+      {showPromiseModal && (
+        <CouplePromiseModal
+          promise={sharedPromise}
+          onClose={() => setShowPromiseModal(false)}
+          onSave={handleSavePromise}
+          onRemove={handleRemovePromise}
         />
       )}
 

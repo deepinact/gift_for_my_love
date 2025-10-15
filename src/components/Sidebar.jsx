@@ -21,7 +21,8 @@ import {
   LogOut,
   Star,
   Users,
-  HeartHandshake
+  HeartHandshake,
+  Feather
 } from 'lucide-react'
 import './Sidebar.css'
 
@@ -52,6 +53,8 @@ const Sidebar = ({
   connectionPrompts = [],
   connectionHighlights = [],
   onToggleConnectionPrompt,
+  sharedPromise = null,
+  onEditPromise,
   onLogout
 }) => {
   const [currentPage, setCurrentPage] = useState(1)
@@ -134,6 +137,21 @@ const Sidebar = ({
     () => connectionPrompts.filter(item => item.completed).length,
     [connectionPrompts]
   )
+
+  const promiseUpdatedLabel = useMemo(() => {
+    if (!sharedPromise || (!sharedPromise.mantra && !sharedPromise.ritual)) {
+      return '一起写下第一句旅程宣言'
+    }
+    if (sharedPromise.savedAt) {
+      try {
+        const savedDate = new Date(sharedPromise.savedAt)
+        if (!Number.isNaN(savedDate.getTime())) {
+          return `更新于 ${savedDate.toLocaleDateString('zh-CN')}`
+        }
+      } catch {}
+    }
+    return '旅程宣言已记录'
+  }, [sharedPromise])
 
   const panelButtons = useMemo(() => {
     const completedAchievements = achievements.filter(item => item.status === 'completed').length
@@ -330,7 +348,7 @@ const Sidebar = ({
                 <span>{achievements.length}</span>
               </div>
               {achievements.length > 0 ? (
-                <div className="overlay-achievement-grid">
+                <ul className="achievement-list">
                   {achievements.map(achievement => {
                     const statusLabel =
                       achievement.status === 'completed'
@@ -340,52 +358,43 @@ const Sidebar = ({
                           : '待解锁'
 
                     return (
-                      <article
-                        key={achievement.id}
-                        className={`achievement-card ${achievement.status}`}
-                      >
-                        <header className="achievement-card-header">
-                          <div className="achievement-card-badge">
-                            <span className="achievement-medal">
-                              <Award size={18} />
-                            </span>
-                            <div className="achievement-card-headings">
-                              <h5>{achievement.title}</h5>
-                              <span className="achievement-status-tag">{statusLabel}</span>
+                      <li key={achievement.id}>
+                        <article className={`achievement-line ${achievement.status}`}>
+                          <header className="achievement-line-header">
+                            <div className="achievement-line-meta">
+                              <span className="achievement-line-medal" aria-hidden="true">✦</span>
+                              <div>
+                                <strong>{achievement.title}</strong>
+                                <span className="achievement-line-status">{statusLabel}</span>
+                              </div>
                             </div>
+                            {onToggleAchievementPin && (
+                              <button
+                                type="button"
+                                className={`achievement-pin ${achievement.pinned ? 'active' : ''}`}
+                                onClick={() => onToggleAchievementPin(achievement.id)}
+                                aria-label={achievement.pinned ? '取消收藏奖章' : '收藏奖章'}
+                              >
+                                <Star size={14} />
+                              </button>
+                            )}
+                          </header>
+                          <p className="achievement-line-description">{achievement.description}</p>
+                          <div className="achievement-line-progress">
+                            <div className="achievement-line-bar">
+                              <span style={{ width: `${achievement.progressPercent}%` }} />
+                            </div>
+                            <small>{achievement.progressPercent}% · {achievement.current || 0}/{achievement.target}</small>
                           </div>
-                          {onToggleAchievementPin && (
-                            <button
-                              type="button"
-                              className={`achievement-pin ${achievement.pinned ? 'active' : ''}`}
-                              onClick={() => onToggleAchievementPin(achievement.id)}
-                              aria-label={achievement.pinned ? '取消收藏奖章' : '收藏奖章'}
-                            >
-                              <Star size={16} />
-                            </button>
-                          )}
-                        </header>
-                        <p className="achievement-card-description">{achievement.description}</p>
-                        <div className="achievement-card-progress">
-                          <div className="achievement-card-progress-bar">
-                            <div
-                              className="achievement-card-progress-fill"
-                              style={{ width: `${achievement.progressPercent}%` }}
-                            />
-                          </div>
-                          <div className="achievement-card-progress-meta">
-                            <span>{achievement.progressPercent}%</span>
-                            <span>{achievement.current || 0}/{achievement.target}</span>
-                          </div>
-                        </div>
-                        <div className="achievement-card-reward">
-                          <span>奖励</span>
-                          <strong>{achievement.reward}</strong>
-                        </div>
-                      </article>
+                          <footer className="achievement-line-footer">
+                            <span>奖励</span>
+                            <strong>{achievement.reward}</strong>
+                          </footer>
+                        </article>
+                      </li>
                     )
                   })}
-                </div>
+                </ul>
               ) : (
                 <p className="overlay-empty">暂时还没有成就，和TA一起完成第一个目标吧。</p>
               )}
@@ -496,6 +505,30 @@ const Sidebar = ({
             </div>
           </div>
         )}
+
+        <div className="promise-preview">
+          <div className="promise-preview-header">
+            <div className="promise-preview-title">
+              <Heart size={18} />
+              <div>
+                <h3>旅程约定</h3>
+                <span>{promiseUpdatedLabel}</span>
+              </div>
+            </div>
+            {onEditPromise && (
+              <button type="button" onClick={onEditPromise} className="promise-preview-cta">
+                <Feather size={16} />
+                <span>编辑</span>
+              </button>
+            )}
+          </div>
+          <div className="promise-preview-body">
+            <p>{sharedPromise?.mantra || '写下一句属于两个人的旅行誓言，让地图提醒彼此珍惜当下。'}</p>
+            {sharedPromise?.ritual && (
+              <span className="promise-preview-ritual">下一步：{sharedPromise.ritual}</span>
+            )}
+          </div>
+        </div>
 
         {connectionHighlights.length > 0 && (
           <div className="bonding-preview">
