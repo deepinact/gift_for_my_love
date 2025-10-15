@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react'
+import React, { useMemo, useState, useCallback } from 'react'
 import {
   Search,
   MapPin,
@@ -16,7 +16,8 @@ import {
   CalendarDays,
   Compass,
   Award,
-  BookOpen
+  BookOpen,
+  XCircle
 } from 'lucide-react'
 import './Sidebar.css'
 
@@ -44,6 +45,7 @@ const Sidebar = ({
 }) => {
   const [currentPage, setCurrentPage] = useState(1)
   const [isCollapsed, setIsCollapsed] = useState(typeof window !== 'undefined' ? window.innerWidth < 768 : false)
+  const [activePanel, setActivePanel] = useState(null)
   const itemsPerPage = 10
 
   // 获取类别表情符号的函数
@@ -98,16 +100,226 @@ const Sidebar = ({
   }, [])
 
   // 处理目的地点击
-  const handleDestinationClick = (destination) => {
+  const handleDestinationClick = useCallback((destination) => {
     if (onDestinationClick) {
       onDestinationClick(destination)
     }
-  }
+  }, [onDestinationClick])
 
   // 切换侧边栏状态
   const toggleSidebar = () => {
     setIsCollapsed(!isCollapsed)
   }
+
+  const openPanel = useCallback((panelId) => {
+    setActivePanel(panelId)
+  }, [])
+
+  const closePanel = useCallback(() => {
+    setActivePanel(null)
+  }, [])
+
+  const panelButtons = useMemo(() => [
+    {
+      id: 'inspiration',
+      icon: Sun,
+      title: '灵感空间',
+      subtitle: '当季推荐与愿望聚焦',
+      badge: seasonalHighlights.length + wishlistSpotlights.length,
+      empty: seasonalHighlights.length === 0 && wishlistSpotlights.length === 0
+    },
+    {
+      id: 'plans',
+      icon: CalendarDays,
+      title: '旅程计划',
+      subtitle: '查看下一段旅程安排',
+      badge: upcomingPlans.length,
+      empty: upcomingPlans.length === 0
+    },
+    {
+      id: 'memory',
+      icon: BookOpen,
+      title: '回忆胶囊',
+      subtitle: '重温已走过的故事',
+      badge: memoryLane.length,
+      empty: memoryLane.length === 0
+    },
+    {
+      id: 'achievements',
+      icon: Award,
+      title: '旅程成就',
+      subtitle: '记录我们的旅程里程碑',
+      badge: achievements.filter(item => item.achieved).length,
+      empty: achievements.length === 0
+    }
+  ], [achievements, memoryLane, upcomingPlans, seasonalHighlights, wishlistSpotlights])
+
+  const renderPanelContent = useCallback(() => {
+    switch (activePanel) {
+      case 'inspiration':
+        return (
+          <div className="overlay-section">
+            {seasonalHighlights.length > 0 && (
+              <div className="overlay-block">
+                <div className="overlay-block-header">
+                  <Sun size={16} />
+                  <h4>当季精选</h4>
+                  <span>{seasonalHighlights.length}</span>
+                </div>
+                <div className="overlay-cards">
+                  {seasonalHighlights.map(destination => (
+                    <button
+                      key={`season-${destination.id}`}
+                      type="button"
+                      className="overlay-card-item"
+                      onClick={() => {
+                        closePanel()
+                        handleDestinationClick(destination)
+                      }}
+                    >
+                      <div className="overlay-thumb" style={{ backgroundImage: `url(${destination.image})` }} />
+                      <div className="overlay-info">
+                        <strong>{destination.name}</strong>
+                        <span>{destination.bestTime || destination.category}</span>
+                      </div>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {wishlistSpotlights.length > 0 && (
+              <div className="overlay-block">
+                <div className="overlay-block-header">
+                  <Compass size={16} />
+                  <h4>愿望聚焦</h4>
+                  <span>{wishlistSpotlights.length}</span>
+                </div>
+                <ul className="overlay-list">
+                  {wishlistSpotlights.map(destination => (
+                    <li key={`wish-${destination.id}`}>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          closePanel()
+                          handleDestinationClick(destination)
+                        }}
+                      >
+                        <span>{destination.name}</span>
+                        <small>{destination.category}</small>
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+
+            {seasonalHighlights.length === 0 && wishlistSpotlights.length === 0 && (
+              <p className="overlay-empty">稍等片刻，让我们为下一段旅程寻找灵感。</p>
+            )}
+          </div>
+        )
+      case 'plans':
+        return (
+          <div className="overlay-section">
+            <div className="overlay-block">
+              <div className="overlay-block-header">
+                <CalendarDays size={16} />
+                <h4>下一段旅程</h4>
+                <span>{upcomingPlans.length}</span>
+              </div>
+              {upcomingPlans.length > 0 ? (
+                <ul className="overlay-list">
+                  {upcomingPlans.map(plan => (
+                    <li key={`${plan.destinationId}-${plan.id || plan.title}` }>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const destination = allDestinations.find(dest => dest.id === plan.destinationId)
+                          if (destination) {
+                            closePanel()
+                            handleDestinationClick(destination)
+                          }
+                        }}
+                      >
+                        <div className="overlay-plan-main">
+                          <strong>{plan.destinationName}</strong>
+                          {plan.date && <span>{plan.date}</span>}
+                        </div>
+                        {plan.title && <small>{plan.title}</small>}
+                        {plan.notes && <p>{plan.notes}</p>}
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              ) : (
+                <p className="overlay-empty">还没有旅行计划，快来安排一场惊喜之旅。</p>
+              )}
+            </div>
+          </div>
+        )
+      case 'memory':
+        return (
+          <div className="overlay-section">
+            <div className="overlay-block">
+              <div className="overlay-block-header">
+                <BookOpen size={16} />
+                <h4>回忆胶囊</h4>
+                <span>{memoryLane.length}</span>
+              </div>
+              {memoryLane.length > 0 ? (
+                <div className="overlay-cards memory">
+                  {memoryLane.map(destination => (
+                    <article key={`memory-${destination.id}`} className="overlay-memory-card">
+                      <div className="overlay-thumb" style={{ backgroundImage: `url(${destination.image})` }} />
+                      <div className="overlay-info">
+                        <strong>{destination.name}</strong>
+                        <p>{destination.notes}</p>
+                      </div>
+                    </article>
+                  ))}
+                </div>
+              ) : (
+                <p className="overlay-empty">我们还没有记录下回忆，期待第一次旅程的到来。</p>
+              )}
+            </div>
+          </div>
+        )
+      case 'achievements':
+        return (
+          <div className="overlay-section">
+            <div className="overlay-block">
+              <div className="overlay-block-header">
+                <Award size={16} />
+                <h4>旅程成就</h4>
+                <span>{achievements.length}</span>
+              </div>
+              {achievements.length > 0 ? (
+                <div className="overlay-achievements">
+                  {achievements.map(achievement => (
+                    <div
+                      key={achievement.id}
+                      className={`overlay-achievement ${achievement.achieved ? 'achieved' : ''}`}
+                    >
+                      <div className="overlay-achievement-header">
+                        <Award size={16} />
+                        <span>{achievement.achieved ? '已解锁' : '待解锁'}</span>
+                      </div>
+                      <strong>{achievement.title}</strong>
+                      <p>{achievement.description}</p>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <p className="overlay-empty">暂时还没有成就，和TA一起完成第一个目标吧。</p>
+              )}
+            </div>
+          </div>
+        )
+      default:
+        return null
+    }
+  }, [activePanel, achievements, allDestinations, closePanel, handleDestinationClick, memoryLane, seasonalHighlights, upcomingPlans, wishlistSpotlights])
 
   return (
     <>
@@ -231,91 +443,25 @@ const Sidebar = ({
           </div>
         </div>
 
-        {(seasonalHighlights.length > 0 || wishlistSpotlights.length > 0 || upcomingPlans.length > 0) && (
-          <div className="insights-section">
-            <div className="section-heading">
-              <Sun className="section-icon" />
-              <div>
-                <h3>旅途灵感实验室</h3>
-                <p>根据季节和计划，为我们挑选下一站灵感</p>
+        <div className="insight-launcher">
+          {panelButtons.map(({ id, icon: IconComponent, title, subtitle, badge, empty }) => (
+            <button
+              key={id}
+              type="button"
+              className={`insight-button ${empty ? 'empty' : ''}`}
+              onClick={() => openPanel(id)}
+            >
+              <div className="insight-icon">
+                <IconComponent size={18} />
               </div>
-            </div>
-
-            {seasonalHighlights.length > 0 && (
-              <div className="highlight-group">
-                <div className="group-title">
-                  <Sun size={16} />
-                  <span>当季精选</span>
-                </div>
-                <div className="highlights-grid">
-                  {seasonalHighlights.map(destination => (
-                    <button
-                      key={`season-${destination.id}`}
-                      type="button"
-                      className="highlight-card"
-                      onClick={() => handleDestinationClick(destination)}
-                    >
-                      <div
-                        className="highlight-image"
-                        style={{ backgroundImage: `url(${destination.image})` }}
-                      />
-                      <div className="highlight-info">
-                        <span className="highlight-name">{destination.name}</span>
-                        <span className="highlight-meta">{destination.bestTime || destination.category}</span>
-                      </div>
-                    </button>
-                  ))}
-                </div>
+              <div className="insight-copy">
+                <span className="insight-title">{title}</span>
+                <span className="insight-subtitle">{subtitle}</span>
               </div>
-            )}
-
-            {wishlistSpotlights.length > 0 && (
-              <div className="highlight-group wishlist-group">
-                <div className="group-title">
-                  <Compass size={16} />
-                  <span>梦想聚焦</span>
-                </div>
-                <ul className="wishlist-spotlights">
-                  {wishlistSpotlights.map(destination => (
-                    <li key={`wish-${destination.id}`}>
-                      <button type="button" onClick={() => handleDestinationClick(destination)}>
-                        <span className="spotlight-name">{destination.name}</span>
-                        <span className="spotlight-tag">{destination.category}</span>
-                      </button>
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            )}
-
-            <div className="highlight-group upcoming-group">
-              <div className="group-title">
-                <CalendarDays size={16} />
-                <span>下一段旅程</span>
-              </div>
-              {upcomingPlans.length > 0 ? (
-                <ul className="upcoming-plans">
-                  {upcomingPlans.map(plan => (
-                    <li key={`${plan.destinationId}-${plan.id}`}>
-                      <button type="button" onClick={() => {
-                        const destination = allDestinations.find(dest => dest.id === plan.destinationId)
-                        if (destination) handleDestinationClick(destination)
-                      }}>
-                        <div className="plan-primary">
-                          <span className="plan-destination">{plan.destinationName}</span>
-                          {plan.date && <span className="plan-date">{plan.date}</span>}
-                        </div>
-                        {plan.title && <span className="plan-title">{plan.title}</span>}
-                      </button>
-                    </li>
-                  ))}
-                </ul>
-              ) : (
-                <p className="empty-insight">还没有旅行计划，快去添加一条心动旅程吧！</p>
-              )}
-            </div>
-          </div>
-        )}
+              <span className={`insight-badge ${empty ? 'muted' : ''}`}>{badge}</span>
+            </button>
+          ))}
+        </div>
 
         <div className="destinations-list">
           <div className="list-header">
@@ -446,6 +592,40 @@ const Sidebar = ({
         <div className="sidebar-footer">
           <p>💕 让我们一起环游世界</p>
         </div>
+
+        {activePanel && (
+          <div className="sidebar-overlay" role="dialog" aria-modal="true">
+            <button className="overlay-backdrop" type="button" aria-label="关闭浮层" onClick={closePanel} />
+            <div className="overlay-container">
+              <div className="overlay-header">
+                <div className="overlay-title">
+                  {(() => {
+                    const current = panelButtons.find(panel => panel.id === activePanel)
+                    if (!current) return null
+                    const Icon = current.icon
+                    return <Icon size={18} />
+                  })()}
+                  <span>{(() => {
+                    const current = panelButtons.find(panel => panel.id === activePanel)
+                    return current ? current.title : ''
+                  })()}</span>
+                </div>
+                <button type="button" className="overlay-close" onClick={closePanel}>
+                  <XCircle size={18} />
+                </button>
+              </div>
+              <p className="overlay-subtitle">
+                {(() => {
+                  const current = panelButtons.find(panel => panel.id === activePanel)
+                  return current ? current.subtitle : ''
+                })()}
+              </p>
+              <div className="overlay-content">
+                {renderPanelContent()}
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </>
   )

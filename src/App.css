@@ -3,6 +3,7 @@
   display: flex;
   min-height: 100vh;
   position: relative;
+  overflow-x: hidden;
 }
 
 .map-container {
@@ -12,6 +13,133 @@
   align-items: center;
   justify-content: center;
   padding: 40px 48px;
+}
+
+.map-overlay-card {
+  position: absolute;
+  bottom: 48px;
+  left: 56px;
+  max-width: 320px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding: 22px;
+  border-radius: 22px;
+  background: rgba(15, 23, 42, 0.72);
+  color: #f8fafc;
+  box-shadow: 0 30px 60px rgba(15, 23, 42, 0.35);
+  border: 1px solid rgba(148, 163, 184, 0.35);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+}
+
+.map-overlay-header {
+  display: flex;
+  justify-content: space-between;
+  gap: 18px;
+  align-items: flex-start;
+}
+
+.overlay-eyebrow {
+  font-size: 11px;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+  color: rgba(226, 232, 240, 0.78);
+}
+
+.map-overlay-header h4 {
+  margin: 4px 0 0 0;
+  font-size: 20px;
+  font-weight: 700;
+}
+
+.overlay-counts {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 2px;
+  font-size: 12px;
+  color: rgba(226, 232, 240, 0.85);
+}
+
+.overlay-counts span {
+  font-size: 18px;
+  font-weight: 700;
+  color: #f9fafb;
+}
+
+.overlay-progress {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.overlay-progress-bar {
+  width: 100%;
+  height: 10px;
+  border-radius: 999px;
+  background: rgba(226, 232, 240, 0.22);
+  overflow: hidden;
+}
+
+.overlay-progress-fill {
+  height: 100%;
+  border-radius: 999px;
+  background: linear-gradient(90deg, rgba(59, 130, 246, 0.95), rgba(236, 72, 153, 0.95));
+  transition: width 0.4s ease;
+}
+
+.overlay-progress-meta {
+  display: flex;
+  justify-content: space-between;
+  font-size: 12px;
+  color: rgba(226, 232, 240, 0.75);
+}
+
+.overlay-highlight,
+.overlay-next {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.overlay-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  letter-spacing: 0.4px;
+  text-transform: uppercase;
+  background: rgba(226, 232, 240, 0.16);
+  color: rgba(226, 232, 240, 0.86);
+  padding: 4px 10px;
+  border-radius: 999px;
+}
+
+.overlay-badge.secondary {
+  background: rgba(45, 212, 191, 0.18);
+  color: rgba(94, 234, 212, 0.95);
+}
+
+.overlay-highlight p,
+.overlay-next-body {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.overlay-subtle {
+  font-size: 12px;
+  color: rgba(226, 232, 240, 0.78);
+}
+
+.overlay-next-body span {
+  font-weight: 500;
+}
+
+.overlay-next small {
+  font-size: 11px;
+  color: rgba(226, 232, 240, 0.7);
 }
 
 .map-canvas {
@@ -108,23 +236,31 @@
   }
 
   .map-container {
-    padding: 16px;
+    padding: 0 12px 72px;
+    align-items: stretch;
   }
 
   .map-canvas {
-    height: 60vh;
-    border-radius: 18px;
+    height: calc(100vh - 220px);
+    min-height: 360px;
+    border-radius: 20px;
+    box-shadow: 0 18px 46px rgba(15, 23, 42, 0.28);
   }
 
   /* 移动端缩放控件调整 */
   .custom-zoom-control {
-    top: 16px;
+    top: auto;
+    bottom: 20px;
     right: 18px;
+    flex-direction: row;
+    backdrop-filter: blur(18px);
+    -webkit-backdrop-filter: blur(18px);
   }
 
   .zoom-btn {
-    width: 34px;
-    height: 34px;
+    width: 38px;
+    height: 38px;
+    border-radius: 14px;
     font-size: 16px;
   }
 
@@ -201,17 +337,6 @@
     flex-direction: column;
     align-items: flex-start;
     gap: 4px;
-  }
-}
-
-@media (max-width: 1200px) {
-  .map-container {
-    padding: 24px;
-  }
-
-  .map-canvas {
-    height: calc(100vh - 72px);
-    border-radius: 24px;
   }
 }
 

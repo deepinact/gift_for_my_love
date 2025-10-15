@@ -115,6 +115,16 @@ body {
   background: var(--surface-strong);
 }
 
+@media (max-width: 768px) {
+  body {
+    background: linear-gradient(160deg, #0f172a 0%, #312e81 35%, #4c1d95 65%, #1e1b4b 100%);
+  }
+
+  .leaflet-popup-content {
+    min-width: 180px;
+  }
+}
+
 ::-webkit-scrollbar {
   width: 10px;
 }

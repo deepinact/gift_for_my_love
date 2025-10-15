@@ -153,21 +153,22 @@ const MusicPlayer = () => {
       <div
         style={{
           position: 'fixed',
-          bottom: '30px',
-          right: '30px',
+          bottom: isMobile ? '20px' : '30px',
+          right: isMobile ? '16px' : '30px',
           zIndex: 1000,
           display: 'flex',
           flexDirection: 'column',
           alignItems: 'center',
-          gap: '10px'
+          gap: '10px',
+          left: 'auto'
         }}
       >
         <button
           onClick={togglePlayPause}
           style={{
-            width: '56px',
-            height: '56px',
-            borderRadius: '18px',
+            width: isMobile ? '48px' : '56px',
+            height: isMobile ? '48px' : '56px',
+            borderRadius: isMobile ? '16px' : '18px',
             border: '1px solid rgba(148, 163, 184, 0.35)',
             background: isPlaying
               ? 'linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%)'
@@ -216,9 +217,9 @@ const MusicPlayer = () => {
             style={{
               background: 'rgba(15, 23, 42, 0.72)',
               color: 'white',
-              padding: '6px 12px',
+              padding: isMobile ? '5px 10px' : '6px 12px',
               borderRadius: '14px',
-              fontSize: '11px',
+              fontSize: isMobile ? '10px' : '11px',
               fontWeight: '500',
               letterSpacing: '0.04em',
               backdropFilter: 'blur(10px)',
