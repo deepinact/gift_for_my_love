@@ -1,5 +1,29 @@
-import React, { useMemo, useState } from 'react'
-import { Search, MapPin, Heart, CheckCircle, Filter, Globe, ChevronLeft, ChevronRight, Menu, X, Plus } from 'lucide-react'
+import React, { useMemo, useState, useCallback } from 'react'
+import {
+  Search,
+  MapPin,
+  Heart,
+  CheckCircle,
+  Filter,
+  Globe,
+  ChevronLeft,
+  ChevronRight,
+  Menu,
+  X,
+  Plus,
+  Sparkles,
+  Sun,
+  CalendarDays,
+  Compass,
+  Award,
+  BookOpen,
+  XCircle,
+  LogOut,
+  Star,
+  Users,
+  HeartHandshake,
+  Feather
+} from 'lucide-react'
 import './Sidebar.css'
 
 const Sidebar = ({
@@ -14,13 +38,28 @@ const Sidebar = ({
   setShowVisited,
   showWishlist,
   setShowWishlist,
-  visitedCount,
-  wishlistCount,
+  stats,
+  seasonalHighlights = [],
+  wishlistSpotlights = [],
+  upcomingPlans = [],
+  achievements = [],
+  memoryLane = [],
+  dailyMood,
   onDestinationClick,
-  onAddDestination
+  onAddDestination,
+  session,
+  pinnedAchievements = [],
+  onToggleAchievementPin,
+  connectionPrompts = [],
+  connectionHighlights = [],
+  onToggleConnectionPrompt,
+  sharedPromise = null,
+  onEditPromise,
+  onLogout
 }) => {
   const [currentPage, setCurrentPage] = useState(1)
   const [isCollapsed, setIsCollapsed] = useState(typeof window !== 'undefined' ? window.innerWidth < 768 : false)
+  const [activePanel, setActivePanel] = useState(null)
   const itemsPerPage = 10
 
   // 获取类别表情符号的函数
@@ -75,16 +114,331 @@ const Sidebar = ({
   }, [])
 
   // 处理目的地点击
-  const handleDestinationClick = (destination) => {
+  const handleDestinationClick = useCallback((destination) => {
     if (onDestinationClick) {
       onDestinationClick(destination)
     }
-  }
+  }, [onDestinationClick])
 
   // 切换侧边栏状态
   const toggleSidebar = () => {
     setIsCollapsed(!isCollapsed)
   }
+
+  const openPanel = useCallback((panelId) => {
+    setActivePanel(panelId)
+  }, [])
+
+  const closePanel = useCallback(() => {
+    setActivePanel(null)
+  }, [])
+
+  const completedBondingCount = useMemo(
+    () => connectionPrompts.filter(item => item.completed).length,
+    [connectionPrompts]
+  )
+
+  const promiseUpdatedLabel = useMemo(() => {
+    if (!sharedPromise || (!sharedPromise.mantra && !sharedPromise.ritual)) {
+      return '一起写下第一句旅程宣言'
+    }
+    if (sharedPromise.savedAt) {
+      try {
+        const savedDate = new Date(sharedPromise.savedAt)
+        if (!Number.isNaN(savedDate.getTime())) {
+          return `更新于 ${savedDate.toLocaleDateString('zh-CN')}`
+        }
+      } catch {}
+    }
+    return '旅程宣言已记录'
+  }, [sharedPromise])
+
+  const panelButtons = useMemo(() => {
+    const completedAchievements = achievements.filter(item => item.status === 'completed').length
+    return [
+      {
+        id: 'inspiration',
+        icon: Sun,
+        title: '灵感空间',
+        subtitle: '当季推荐与愿望聚焦',
+        badge: seasonalHighlights.length + wishlistSpotlights.length,
+        empty: seasonalHighlights.length === 0 && wishlistSpotlights.length === 0
+      },
+      {
+        id: 'plans',
+        icon: CalendarDays,
+        title: '旅程计划',
+        subtitle: '查看下一段旅程安排',
+        badge: upcomingPlans.length,
+        empty: upcomingPlans.length === 0
+      },
+      {
+        id: 'memory',
+        icon: BookOpen,
+        title: '回忆胶囊',
+        subtitle: '重温已走过的故事',
+        badge: memoryLane.length,
+        empty: memoryLane.length === 0
+      },
+      {
+        id: 'achievements',
+        icon: Award,
+        title: '旅程成就',
+        subtitle: '记录我们的旅程里程碑',
+        badge: `${completedAchievements}/${achievements.length || 1}`,
+        empty: achievements.length === 0
+      },
+      {
+        id: 'bonding',
+        icon: HeartHandshake,
+        title: '心动互动',
+        subtitle: '完成双人的甜蜜小任务',
+        badge: `${completedBondingCount}/${connectionPrompts.length || 1}`,
+        empty: connectionPrompts.length === 0
+      }
+    ]
+  }, [achievements, completedBondingCount, connectionPrompts, memoryLane, upcomingPlans, seasonalHighlights, wishlistSpotlights])
+
+  const pinnedCards = useMemo(() => {
+    if (!Array.isArray(pinnedAchievements) || pinnedAchievements.length === 0) return []
+    return pinnedAchievements
+      .map(id => achievements.find(achievement => achievement.id === id))
+      .filter(Boolean)
+      .slice(0, 4)
+  }, [achievements, pinnedAchievements])
+
+  const renderPanelContent = useCallback(() => {
+    switch (activePanel) {
+      case 'inspiration':
+        return (
+          <div className="overlay-section">
+            {seasonalHighlights.length > 0 && (
+              <div className="overlay-block">
+                <div className="overlay-block-header">
+                  <Sun size={16} />
+                  <h4>当季精选</h4>
+                  <span>{seasonalHighlights.length}</span>
+                </div>
+                <div className="overlay-cards">
+                  {seasonalHighlights.map(destination => (
+                    <button
+                      key={`season-${destination.id}`}
+                      type="button"
+                      className="overlay-card-item"
+                      onClick={() => {
+                        closePanel()
+                        handleDestinationClick(destination)
+                      }}
+                    >
+                      <div className="overlay-thumb" style={{ backgroundImage: `url(${destination.image})` }} />
+                      <div className="overlay-info">
+                        <strong>{destination.name}</strong>
+                        <span>{destination.bestTime || destination.category}</span>
+                      </div>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {wishlistSpotlights.length > 0 && (
+              <div className="overlay-block">
+                <div className="overlay-block-header">
+                  <Compass size={16} />
+                  <h4>愿望聚焦</h4>
+                  <span>{wishlistSpotlights.length}</span>
+                </div>
+                <ul className="overlay-list">
+                  {wishlistSpotlights.map(destination => (
+                    <li key={`wish-${destination.id}`}>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          closePanel()
+                          handleDestinationClick(destination)
+                        }}
+                      >
+                        <span>{destination.name}</span>
+                        <small>{destination.category}</small>
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+
+            {seasonalHighlights.length === 0 && wishlistSpotlights.length === 0 && (
+              <p className="overlay-empty">稍等片刻，让我们为下一段旅程寻找灵感。</p>
+            )}
+          </div>
+        )
+      case 'plans':
+        return (
+          <div className="overlay-section">
+            <div className="overlay-block">
+              <div className="overlay-block-header">
+                <CalendarDays size={16} />
+                <h4>下一段旅程</h4>
+                <span>{upcomingPlans.length}</span>
+              </div>
+              {upcomingPlans.length > 0 ? (
+                <ul className="overlay-list">
+                  {upcomingPlans.map(plan => (
+                    <li key={`${plan.destinationId}-${plan.id || plan.title}` }>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const destination = allDestinations.find(dest => dest.id === plan.destinationId)
+                          if (destination) {
+                            closePanel()
+                            handleDestinationClick(destination)
+                          }
+                        }}
+                      >
+                        <div className="overlay-plan-main">
+                          <strong>{plan.destinationName}</strong>
+                          {plan.date && <span>{plan.date}</span>}
+                        </div>
+                        {plan.title && <small>{plan.title}</small>}
+                        {plan.notes && <p>{plan.notes}</p>}
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              ) : (
+                <p className="overlay-empty">还没有旅行计划，快来安排一场惊喜之旅。</p>
+              )}
+            </div>
+          </div>
+        )
+      case 'memory':
+        return (
+          <div className="overlay-section">
+            <div className="overlay-block">
+              <div className="overlay-block-header">
+                <BookOpen size={16} />
+                <h4>回忆胶囊</h4>
+                <span>{memoryLane.length}</span>
+              </div>
+              {memoryLane.length > 0 ? (
+                <div className="overlay-cards memory">
+                  {memoryLane.map(destination => (
+                    <article key={`memory-${destination.id}`} className="overlay-memory-card">
+                      <div className="overlay-thumb" style={{ backgroundImage: `url(${destination.image})` }} />
+                      <div className="overlay-info">
+                        <strong>{destination.name}</strong>
+                        <p>{destination.notes}</p>
+                      </div>
+                    </article>
+                  ))}
+                </div>
+              ) : (
+                <p className="overlay-empty">我们还没有记录下回忆，期待第一次旅程的到来。</p>
+              )}
+            </div>
+          </div>
+        )
+      case 'achievements':
+        return (
+          <div className="overlay-section">
+            <div className="overlay-block">
+              <div className="overlay-block-header">
+                <Award size={16} />
+                <h4>旅程成就</h4>
+                <span>{achievements.length}</span>
+              </div>
+              {achievements.length > 0 ? (
+                <ul className="achievement-list">
+                  {achievements.map(achievement => {
+                    const statusLabel =
+                      achievement.status === 'completed'
+                        ? '已点亮'
+                        : achievement.status === 'in-progress'
+                          ? '进行中'
+                          : '待解锁'
+
+                    return (
+                      <li key={achievement.id}>
+                        <article className={`achievement-line ${achievement.status}`}>
+                          <header className="achievement-line-header">
+                            <div className="achievement-line-meta">
+                              <span className="achievement-line-medal" aria-hidden="true">✦</span>
+                              <div>
+                                <strong>{achievement.title}</strong>
+                                <span className="achievement-line-status">{statusLabel}</span>
+                              </div>
+                            </div>
+                            {onToggleAchievementPin && (
+                              <button
+                                type="button"
+                                className={`achievement-pin ${achievement.pinned ? 'active' : ''}`}
+                                onClick={() => onToggleAchievementPin(achievement.id)}
+                                aria-label={achievement.pinned ? '取消收藏奖章' : '收藏奖章'}
+                              >
+                                <Star size={14} />
+                              </button>
+                            )}
+                          </header>
+                          <p className="achievement-line-description">{achievement.description}</p>
+                          <div className="achievement-line-progress">
+                            <div className="achievement-line-bar">
+                              <span style={{ width: `${achievement.progressPercent}%` }} />
+                            </div>
+                            <small>{achievement.progressPercent}% · {achievement.current || 0}/{achievement.target}</small>
+                          </div>
+                          <footer className="achievement-line-footer">
+                            <span>奖励</span>
+                            <strong>{achievement.reward}</strong>
+                          </footer>
+                        </article>
+                      </li>
+                    )
+                  })}
+                </ul>
+              ) : (
+                <p className="overlay-empty">暂时还没有成就，和TA一起完成第一个目标吧。</p>
+              )}
+            </div>
+          </div>
+        )
+      case 'bonding':
+        return (
+          <div className="overlay-section">
+            <div className="overlay-block">
+              <div className="overlay-block-header">
+                <HeartHandshake size={16} />
+                <h4>心动互动</h4>
+                <span>{completedBondingCount}/{connectionPrompts.length}</span>
+              </div>
+              {connectionPrompts.length > 0 ? (
+                <ul className="overlay-bonding-list">
+                  {connectionPrompts.map(prompt => (
+                    <li key={prompt.id}>
+                      <button
+                        type="button"
+                        className={`bonding-card ${prompt.completed ? 'completed' : ''}`}
+                        onClick={() => onToggleConnectionPrompt && onToggleConnectionPrompt(prompt.id)}
+                      >
+                        <div className="bonding-card-header">
+                          <strong>{prompt.title}</strong>
+                          <span className="bonding-status">{prompt.completed ? '已完成' : '待完成'}</span>
+                        </div>
+                        <p>{prompt.description}</p>
+                        <span className="bonding-card-tip">点击标记为{prompt.completed ? '未完成' : '完成'}</span>
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              ) : (
+                <p className="overlay-empty">稍后我们会为你们准备新的互动灵感。</p>
+              )}
+            </div>
+          </div>
+        )
+      default:
+        return null
+    }
+  }, [activePanel, achievements, allDestinations, closePanel, completedBondingCount, connectionPrompts, handleDestinationClick, memoryLane, onToggleAchievementPin, onToggleConnectionPrompt, seasonalHighlights, upcomingPlans, wishlistSpotlights])
 
   return (
     <>
@@ -105,6 +459,28 @@ const Sidebar = ({
           <p>记录我们的旅行足迹</p>
         </div>
 
+        {session && (
+          <div className="account-section">
+            <div className="account-info">
+              <span className="account-label">双人旅伴</span>
+              <div className="account-names">
+                <Users size={18} />
+                <h2>
+                  <span>{session.myUsername}</span>
+                  <span className="ampersand">&</span>
+                  <span>{session.partnerUsername}</span>
+                </h2>
+              </div>
+              <p>共享灵感、计划与回忆，随时同步。</p>
+            </div>
+            {onLogout && (
+              <button type="button" className="account-logout" onClick={onLogout}>
+                <LogOut size={16} /> 安全退出
+              </button>
+            )}
+          </div>
+        )}
+
         <div className="search-section">
           <div className="search-box">
             <Search className="search-icon" />
@@ -117,18 +493,86 @@ const Sidebar = ({
           </div>
         </div>
 
+        {dailyMood && (
+          <div className="mood-section">
+            <div className="mood-card">
+              <Sparkles className="mood-icon" />
+              <div className="mood-content">
+                <span className="mood-title">{dailyMood.title}</span>
+                <p className="mood-message">{dailyMood.message}</p>
+                <span className="mood-tip">今日提案：{dailyMood.tip}</span>
+              </div>
+            </div>
+          </div>
+        )}
+
+        <div className="promise-preview">
+          <div className="promise-preview-header">
+            <div className="promise-preview-title">
+              <Heart size={18} />
+              <div>
+                <h3>旅程约定</h3>
+                <span>{promiseUpdatedLabel}</span>
+              </div>
+            </div>
+            {onEditPromise && (
+              <button type="button" onClick={onEditPromise} className="promise-preview-cta">
+                <Feather size={16} />
+                <span>编辑</span>
+              </button>
+            )}
+          </div>
+          <div className="promise-preview-body">
+            <p>{sharedPromise?.mantra || '写下一句属于两个人的旅行誓言，让地图提醒彼此珍惜当下。'}</p>
+            {sharedPromise?.ritual && (
+              <span className="promise-preview-ritual">下一步：{sharedPromise.ritual}</span>
+            )}
+          </div>
+        </div>
+
+        {connectionHighlights.length > 0 && (
+          <div className="bonding-preview">
+            <div className="bonding-preview-header">
+              <div className="bonding-preview-title">
+                <HeartHandshake size={18} />
+                <div>
+                  <h3>心动互动</h3>
+                  <span>{completedBondingCount}/{connectionPrompts.length || 1} 已点亮</span>
+                </div>
+              </div>
+              <button type="button" onClick={() => openPanel('bonding')}>
+                查看全部
+              </button>
+            </div>
+            <div className="bonding-preview-grid">
+              {connectionHighlights.map(prompt => (
+                <button
+                  key={prompt.id}
+                  type="button"
+                  className={`bonding-preview-card ${prompt.completed ? 'completed' : ''}`}
+                  onClick={() => onToggleConnectionPrompt && onToggleConnectionPrompt(prompt.id)}
+                >
+                  <span className="bonding-preview-status">{prompt.completed ? '已完成' : '点击完成'}</span>
+                  <strong>{prompt.title}</strong>
+                  <p>{prompt.microCopy}</p>
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+
         <div className="stats-section">
           <div className="stat-item">
             <CheckCircle className="stat-icon visited" />
             <div className="stat-info">
-              <span className="stat-number">{visitedCount}</span>
+              <span className="stat-number">{stats.visitedCount}</span>
               <span className="stat-label">已去过</span>
             </div>
           </div>
           <div className="stat-item">
             <Heart className="stat-icon wishlist" />
             <div className="stat-info">
-              <span className="stat-number">{wishlistCount}</span>
+              <span className="stat-number">{stats.wishlistCount}</span>
               <span className="stat-label">愿望清单</span>
             </div>
           </div>
@@ -139,11 +583,39 @@ const Sidebar = ({
               <span className="stat-label">总目的地</span>
             </div>
           </div>
+          <div className="stat-progress">
+            <div className="stat-progress-bar">
+              <div className="stat-progress-fill" style={{ width: `${stats.progress}%` }} />
+            </div>
+            <span className="stat-progress-text">环球计划已完成 {stats.progress}%</span>
+          </div>
         </div>
+
+        {pinnedCards.length > 0 && (
+          <div className="pinned-section">
+            <div className="pinned-header">
+              <Award size={16} />
+              <h3>奖章陈列柜</h3>
+            </div>
+            <div className="pinned-grid">
+              {pinnedCards.map(card => (
+                <button
+                  key={card.id}
+                  type="button"
+                  className={`pinned-card ${card.status}`}
+                  onClick={() => openPanel('achievements')}
+                >
+                  <span className="pinned-card-title">{card.title}</span>
+                  <span className="pinned-card-progress">{card.progressPercent}%</span>
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
 
         <div className="filter-section">
           <h3><Filter className="filter-icon" /> 筛选</h3>
-          
+
           <div className="filter-group">
             <label className="filter-label">
               <input
@@ -187,6 +659,26 @@ const Sidebar = ({
               })}
             </select>
           </div>
+        </div>
+
+        <div className="insight-launcher">
+          {panelButtons.map(({ id, icon: IconComponent, title, subtitle, badge, empty }) => (
+            <button
+              key={id}
+              type="button"
+              className={`insight-button ${empty ? 'empty' : ''}`}
+              onClick={() => openPanel(id)}
+            >
+              <div className="insight-icon">
+                <IconComponent size={18} />
+              </div>
+              <div className="insight-copy">
+                <span className="insight-title">{title}</span>
+                <span className="insight-subtitle">{subtitle}</span>
+              </div>
+              <span className={`insight-badge ${empty ? 'muted' : ''}`}>{badge}</span>
+            </button>
+          ))}
         </div>
 
         <div className="destinations-list">
@@ -268,6 +760,40 @@ const Sidebar = ({
         <div className="sidebar-footer">
           <p>💕 让我们一起环游世界</p>
         </div>
+
+        {activePanel && (
+          <div className="sidebar-overlay" role="dialog" aria-modal="true">
+            <button className="overlay-backdrop" type="button" aria-label="关闭浮层" onClick={closePanel} />
+            <div className="overlay-container">
+              <div className="overlay-header">
+                <div className="overlay-title">
+                  {(() => {
+                    const current = panelButtons.find(panel => panel.id === activePanel)
+                    if (!current) return null
+                    const Icon = current.icon
+                    return <Icon size={18} />
+                  })()}
+                  <span>{(() => {
+                    const current = panelButtons.find(panel => panel.id === activePanel)
+                    return current ? current.title : ''
+                  })()}</span>
+                </div>
+                <button type="button" className="overlay-close" onClick={closePanel}>
+                  <XCircle size={18} />
+                </button>
+              </div>
+              <p className="overlay-subtitle">
+                {(() => {
+                  const current = panelButtons.find(panel => panel.id === activePanel)
+                  return current ? current.subtitle : ''
+                })()}
+              </p>
+              <div className="overlay-content">
+                {renderPanelContent()}
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </>
   )
