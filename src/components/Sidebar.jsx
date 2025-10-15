@@ -757,6 +757,56 @@ const Sidebar = ({
           </div>
         </div>
 
+        {memoryLane.length > 0 && (
+          <div className="memory-section">
+            <div className="section-heading">
+              <BookOpen className="section-icon" />
+              <div>
+                <h3>回忆胶囊</h3>
+                <p>那些我们已经一起走过的城市瞬间</p>
+              </div>
+            </div>
+            <div className="memory-grid">
+              {memoryLane.map(destination => (
+                <div key={`memory-${destination.id}`} className="memory-card">
+                  <div className="memory-image" style={{ backgroundImage: `url(${destination.image})` }} />
+                  <div className="memory-body">
+                    <h4>{destination.name}</h4>
+                    <p>{destination.notes}</p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {achievements.length > 0 && (
+          <div className="achievement-section">
+            <div className="section-heading">
+              <Award className="section-icon" />
+              <div>
+                <h3>旅程成就墙</h3>
+                <p>解锁里程碑，让旅行故事更闪耀</p>
+              </div>
+            </div>
+            <div className="achievement-grid">
+              {achievements.map(achievement => (
+                <div
+                  key={achievement.id}
+                  className={`achievement-card ${achievement.achieved ? 'achieved' : ''}`}
+                >
+                  <div className="achievement-status">
+                    <Award size={16} />
+                    <span>{achievement.achieved ? '已解锁' : '待解锁'}</span>
+                  </div>
+                  <h4>{achievement.title}</h4>
+                  <p>{achievement.description}</p>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
         <div className="sidebar-footer">
           <p>💕 让我们一起环游世界</p>
         </div>

@@ -16,6 +16,7 @@ const MusicPlayer = () => {
   const audioRef = useRef(null)
   const [isPlaying, setIsPlaying] = useState(false)
   const [hasUserInteracted, setHasUserInteracted] = useState(false)
+  const [isMobile, setIsMobile] = useState(false)
 
   const togglePlayPause = () => {
     const audio = audioRef.current
@@ -123,6 +124,23 @@ const MusicPlayer = () => {
       document.removeEventListener('keydown', enableAutoplay)
     }
   }, [hasUserInteracted])
+
+  useEffect(() => {
+    const updateIsMobile = () => {
+      if (typeof window !== 'undefined') {
+        setIsMobile(window.matchMedia('(max-width: 768px)').matches)
+      }
+    }
+
+    updateIsMobile()
+
+    if (typeof window !== 'undefined') {
+      window.addEventListener('resize', updateIsMobile)
+      return () => window.removeEventListener('resize', updateIsMobile)
+    }
+
+    return undefined
+  }, [])
 
   return (
     <div className="music-player" data-playing={isPlaying ? 'true' : 'false'}>
