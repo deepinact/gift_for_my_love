@@ -333,6 +333,163 @@ function App() {
 
   const baseDestinationIds = useMemo(() => new Set(destinations.map(dest => dest.id)), [])
 
+  const storageKey = session ? session.storageKey : null
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+
+    try {
+      const accountsRaw = localStorage.getItem(ACCOUNTS_KEY)
+      let accounts = []
+      if (accountsRaw) {
+        try {
+          const parsed = JSON.parse(accountsRaw)
+          if (Array.isArray(parsed)) {
+            accounts = parsed
+          }
+        } catch {}
+      }
+
+      const activeRaw = localStorage.getItem(ACTIVE_SESSION_KEY)
+      if (activeRaw) {
+        try {
+          const active = JSON.parse(activeRaw)
+          if (active?.accountId) {
+            const account = accounts.find((item) => item.id === active.accountId)
+            if (account) {
+              const members = Array.isArray(account.members) ? account.members : []
+              const activeMember = members.find((member) => member.normalized === active.activeMember) || members[0]
+              const partnerMember = members.find((member) => member.normalized !== activeMember?.normalized) || members[1] || members[0]
+              if (activeMember) {
+                setSession({
+                  accountId: account.id,
+                  myUsername: activeMember.displayName,
+                  partnerUsername: partnerMember?.displayName || activeMember.displayName,
+                  members: members.length ? members.map((member) => member.displayName) : undefined,
+                  storageKey: account.storageKey
+                })
+              }
+            }
+          }
+        } catch {}
+      }
+    } catch (error) {
+      console.warn('读取账号信息失败', error)
+    } finally {
+      setIsAuthReady(true)
+    }
+  }, [])
+
+  useEffect(() => {
+    if (!session) {
+      setDestinationsData(cloneDestinationsList(destinations))
+      setPinnedAchievements([])
+      setConnectionProgress({})
+      return
+    }
+
+    if (typeof window === 'undefined') return
+
+    let nextData = cloneDestinationsList(destinations)
+    try {
+      const stored = localStorage.getItem(`${session.storageKey}_destinations_state`)
+      if (stored) {
+        const parsed = JSON.parse(stored)
+        if (Array.isArray(parsed) && parsed.length) {
+          nextData = cloneDestinationsList(parsed)
+        }
+      } else {
+        const legacy = localStorage.getItem('custom_destinations')
+        if (legacy) {
+          try {
+            const legacyParsed = JSON.parse(legacy)
+            if (Array.isArray(legacyParsed) && legacyParsed.length) {
+              nextData = cloneDestinationsList([...destinations, ...legacyParsed])
+            }
+          } catch {}
+        }
+      }
+    } catch (error) {
+      console.warn('加载目的地数据失败', error)
+      nextData = cloneDestinationsList(destinations)
+    }
+
+    setDestinationsData(nextData)
+
+    try {
+      const savedPinsRaw = localStorage.getItem(`${session.storageKey}_pinned_achievements`)
+      if (savedPinsRaw) {
+        const parsedPins = JSON.parse(savedPinsRaw)
+        if (Array.isArray(parsedPins)) {
+          setPinnedAchievements(parsedPins)
+        } else {
+          setPinnedAchievements([])
+        }
+      } else {
+        setPinnedAchievements([])
+      }
+    } catch {
+      setPinnedAchievements([])
+    }
+
+    try {
+      const savedConnectionRaw = localStorage.getItem(`${session.storageKey}_connection_prompts`)
+      if (savedConnectionRaw) {
+        const parsed = JSON.parse(savedConnectionRaw)
+        if (parsed && typeof parsed === 'object') {
+          setConnectionProgress(parsed)
+        } else {
+          setConnectionProgress({})
+        }
+      } else {
+        setConnectionProgress({})
+      }
+    } catch {
+      setConnectionProgress({})
+    }
+  }, [session])
+
+  useEffect(() => {
+    if (!session || !storageKey) return
+    if (typeof window === 'undefined') return
+
+    try {
+      localStorage.setItem(`${storageKey}_destinations_state`, JSON.stringify(destinationsData))
+    } catch (error) {
+      console.warn('保存目的地数据失败', error)
+    }
+  }, [destinationsData, session, storageKey])
+
+  useEffect(() => {
+    if (!session || !storageKey) return
+    if (typeof window === 'undefined') return
+
+    try {
+      localStorage.setItem(`${storageKey}_pinned_achievements`, JSON.stringify(pinnedAchievements))
+    } catch (error) {
+      console.warn('保存奖章收藏失败', error)
+    }
+  }, [pinnedAchievements, session, storageKey])
+
+  useEffect(() => {
+    if (!session || !storageKey) return
+    if (typeof window === 'undefined') return
+
+    try {
+      localStorage.setItem(`${storageKey}_connection_prompts`, JSON.stringify(connectionProgress))
+    } catch (error) {
+      console.warn('保存心动互动状态失败', error)
+    }
+  }, [connectionProgress, session, storageKey])
+
+  useEffect(() => {
+    setSelectedDestination(null)
+    setShowModal(false)
+    setShowAddModal(false)
+  }, [session])
+
+  const baseDestinationIds = useMemo(() => new Set(destinations.map(dest => dest.id)), [])
+
   // 使用useMemo优化过滤逻辑
   const filteredDestinationsMemo = useMemo(() => {
     let filtered = destinationsData
