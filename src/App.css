@@ -37,18 +37,23 @@
   position: relative;
   display: flex;
   flex-direction: column;
-  gap: 0;
+  gap: clamp(20px, 3vw, 30px);
   min-height: clamp(580px, 82vh, 980px);
 }
 
-.map-insights-trigger-wrap {
-  position: absolute;
-  bottom: clamp(28px, 7vh, 68px);
-  right: clamp(24px, 6vw, 72px);
+.map-stage-toolbar {
   display: flex;
   justify-content: flex-end;
-  width: auto;
+  align-items: stretch;
+  gap: clamp(12px, 2vw, 18px);
+  flex-wrap: wrap;
+  align-self: stretch;
+  margin-left: auto;
   pointer-events: none;
+}
+
+.map-stage-toolbar > * {
+  pointer-events: auto;
 }
 
 .map-insights-trigger {
@@ -378,9 +383,8 @@
     padding: clamp(28px, 5vw, 48px) clamp(20px, 5vw, 48px);
   }
 
-  .map-insights-trigger-wrap {
-    bottom: clamp(24px, 8vh, 60px);
-    right: clamp(18px, 8vw, 56px);
+  .map-stage-toolbar {
+    gap: clamp(10px, 3vw, 16px);
   }
 }
 
@@ -421,14 +425,13 @@
     border-radius: 22px;
   }
 
-  .map-insights-trigger-wrap {
-    bottom: 20px;
-    right: clamp(16px, 8vw, 32px);
-  }
-
   .map-insights-trigger {
     padding: 12px 16px;
     border-radius: 16px;
+  }
+
+  .map-stage-toolbar {
+    justify-content: center;
   }
 
   .map-insights-trigger-value {
@@ -489,51 +492,14 @@
     border-radius: 18px;
   }
 
-  .map-progress-dock {
-    padding: 16px;
-    gap: 12px;
-  }
-
-  .custom-zoom-control {
-    bottom: 18px;
-    right: 14px;
-  }
-
-  .zoom-btn {
-    width: 36px;
-    height: 36px;
-  }
-}
-
-@media (max-width: 480px) {
-  .app {
-    padding-top: 64px;
-    gap: 16px;
-  }
-
-  .map-container {
-    padding: 16px 12px 64px;
-  }
-
-  .map-stage {
-    padding: 12px;
-    border-radius: 24px;
-    min-height: clamp(380px, 70vh, 640px);
-  }
-
-  .map-canvas {
-    height: clamp(360px, 68vh, 600px);
-    border-radius: 18px;
-  }
-
-  .map-insights-trigger-wrap {
-    bottom: 18px;
-    right: 18px;
-  }
-
   .map-insights-trigger {
     padding: 11px 15px;
     gap: 4px;
+  }
+
+  .map-stage-toolbar {
+    justify-content: center;
+    gap: 10px;
   }
 
   .map-insights-trigger-value {

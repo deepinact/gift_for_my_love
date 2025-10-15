@@ -1099,8 +1099,7 @@ function App() {
               />
             )}
           </MapContainer>
-
-          <div className="map-insights-trigger-wrap">
+          <div className="map-stage-toolbar">
             <button
               type="button"
               className="map-insights-trigger"
@@ -1111,6 +1110,7 @@ function App() {
               <span className="overlay-eyebrow">环球进度</span>
               <span className="map-insights-trigger-value">{stats.progress}%</span>
             </button>
+            <MusicPlayer />
           </div>
         </div>
       </div>
@@ -1232,9 +1232,6 @@ function App() {
           onRemove={handleRemovePromise}
         />
       )}
-
-      {/* 音乐播放器 - 自动循环播放 */}
-      <MusicPlayer />
     </div>
   )
 }
