@@ -26,8 +26,8 @@
 }
 
 .map-stage {
-  width: min(100%, 1240px);
-  padding: clamp(18px, 2.6vw, 26px);
+  width: min(100%, 1360px);
+  padding: clamp(18px, 2.4vw, 26px);
   border-radius: 30px;
   background: rgba(15, 23, 42, 0.86);
   border: 1px solid rgba(148, 163, 184, 0.28);
@@ -38,13 +38,14 @@
   display: flex;
   flex-direction: column;
   gap: 0;
+  min-height: clamp(580px, 82vh, 980px);
 }
 
 .map-progress-dock {
   position: absolute;
-  bottom: clamp(120px, 18vh, 200px);
+  bottom: clamp(96px, 16vh, 200px);
   right: clamp(20px, 4vw, 42px);
-  width: clamp(220px, 26vw, 340px);
+  width: clamp(240px, 24vw, 360px);
   display: flex;
   flex-direction: column;
   gap: 16px;
@@ -216,7 +217,7 @@
 .map-canvas {
   flex: 1;
   width: 100%;
-  height: clamp(500px, 72vh, 840px);
+  height: clamp(560px, 80vh, 960px);
   border-radius: 24px;
   overflow: hidden;
   border: 1px solid rgba(148, 163, 184, 0.28);
@@ -310,12 +311,17 @@
 @media (max-width: 1024px) {
   .map-stage {
     padding: clamp(16px, 3vw, 22px);
+    min-height: clamp(520px, 78vh, 900px);
   }
 
   .map-progress-dock {
     position: static;
     width: min(100%, 520px);
     margin: 24px auto 0;
+  }
+
+  .map-canvas {
+    height: clamp(520px, 76vh, 880px);
   }
 }
 
@@ -332,10 +338,11 @@
 
   .map-stage {
     border-radius: 26px;
+    min-height: clamp(440px, 74vh, 760px);
   }
 
   .map-canvas {
-    height: clamp(360px, 64vh, 600px);
+    height: clamp(420px, 70vh, 720px);
     border-radius: 22px;
   }
 
@@ -381,10 +388,11 @@
   .map-stage {
     padding: 12px;
     border-radius: 24px;
+    min-height: clamp(380px, 70vh, 640px);
   }
 
   .map-canvas {
-    height: clamp(300px, 60vh, 520px);
+    height: clamp(360px, 68vh, 600px);
     border-radius: 18px;
   }
 
