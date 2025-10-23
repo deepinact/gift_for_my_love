@@ -8,7 +8,10 @@ import DestinationModal from './components/DestinationModal'
 import MusicPlayer from './components/MusicPlayer'
 import CoupleAuthOverlay from './components/CoupleAuthOverlay'
 import CouplePromiseModal from './components/CouplePromiseModal'
+import useSessionStorageState from './hooks/useSessionStorageState'
 import './App.css'
+
+const isBrowserEnv = typeof window !== 'undefined'
 
 const parseMonthRanges = (text) => {
   if (!text) return []
@@ -126,21 +129,141 @@ function App() {
   const [isAuthReady, setIsAuthReady] = useState(false)
   const [authLoading, setAuthLoading] = useState(false)
   const [authGlobalError, setAuthGlobalError] = useState('')
-  const [pinnedAchievements, setPinnedAchievements] = useState([])
-  const [connectionProgress, setConnectionProgress] = useState({})
   const [selectedDestination, setSelectedDestination] = useState(null)
   const [showModal, setShowModal] = useState(false)
-  const [destinationsData, setDestinationsData] = useState(() => cloneDestinationsList(destinations))
   const [selectedCategory, setSelectedCategory] = useState('全部')
   const [searchTerm, setSearchTerm] = useState('')
   const [showVisited, setShowVisited] = useState(false)
   const [showWishlist, setShowWishlist] = useState(false)
   const [showAddModal, setShowAddModal] = useState(false)
-  const [sharedPromise, setSharedPromise] = useState(null)
   const [showPromiseModal, setShowPromiseModal] = useState(false)
   const [showMapInsights, setShowMapInsights] = useState(false)
 
-  const activeStorageKey = useMemo(() => (session ? session.storageKey : null), [session])
+  const defaultDestinationsFactory = useCallback(() => cloneDestinationsList(destinations), [destinations])
+  const emptyArrayFactory = useCallback(() => [], [])
+  const emptyObjectFactory = useCallback(() => ({}), [])
+
+  const readDestinationsFromStorage = useCallback((storageKey) => {
+    if (!isBrowserEnv) return undefined
+    try {
+      const stored = window.localStorage.getItem(storageKey)
+      if (stored) {
+        const parsed = JSON.parse(stored)
+        if (Array.isArray(parsed) && parsed.length) {
+          return cloneDestinationsList(parsed)
+        }
+      } else {
+        const legacyRaw = window.localStorage.getItem('custom_destinations')
+        if (legacyRaw) {
+          const legacyParsed = JSON.parse(legacyRaw)
+          if (Array.isArray(legacyParsed) && legacyParsed.length) {
+            return cloneDestinationsList([...destinations, ...legacyParsed])
+          }
+        }
+      }
+    } catch (error) {
+      console.warn('加载目的地数据失败', error)
+    }
+    return undefined
+  }, [destinations])
+
+  const writeDestinationsToStorage = useCallback((storageKey, value) => {
+    if (!isBrowserEnv) return
+    window.localStorage.setItem(storageKey, JSON.stringify(value))
+  }, [])
+
+  const [destinationsData, setDestinationsData] = useSessionStorageState(session, 'destinations_state', {
+    defaultFactory: defaultDestinationsFactory,
+    readValue: readDestinationsFromStorage,
+    writeValue: writeDestinationsToStorage
+  })
+
+  const readPinnedAchievements = useCallback((storageKey) => {
+    if (!isBrowserEnv) return []
+    try {
+      const raw = window.localStorage.getItem(storageKey)
+      if (!raw) return []
+      const parsed = JSON.parse(raw)
+      return Array.isArray(parsed) ? parsed : []
+    } catch {
+      return []
+    }
+  }, [])
+
+  const writePinnedAchievements = useCallback((storageKey, value) => {
+    if (!isBrowserEnv) return
+    const payload = Array.isArray(value) ? value : []
+    window.localStorage.setItem(storageKey, JSON.stringify(payload))
+  }, [])
+
+  const [pinnedAchievements, setPinnedAchievements] = useSessionStorageState(session, 'pinned_achievements', {
+    defaultFactory: emptyArrayFactory,
+    readValue: readPinnedAchievements,
+    writeValue: writePinnedAchievements
+  })
+
+  const readConnectionProgress = useCallback((storageKey) => {
+    if (!isBrowserEnv) return {}
+    try {
+      const raw = window.localStorage.getItem(storageKey)
+      if (!raw) return {}
+      const parsed = JSON.parse(raw)
+      return parsed && typeof parsed === 'object' ? parsed : {}
+    } catch {
+      return {}
+    }
+  }, [])
+
+  const writeConnectionProgress = useCallback((storageKey, value) => {
+    if (!isBrowserEnv) return
+    window.localStorage.setItem(storageKey, JSON.stringify(value || {}))
+  }, [])
+
+  const [connectionProgress, setConnectionProgress] = useSessionStorageState(session, 'connection_prompts', {
+    defaultFactory: emptyObjectFactory,
+    readValue: readConnectionProgress,
+    writeValue: writeConnectionProgress
+  })
+
+  const readSharedPromise = useCallback((storageKey) => {
+    if (!isBrowserEnv) return null
+    try {
+      const raw = window.localStorage.getItem(storageKey)
+      if (!raw) return null
+      const parsed = JSON.parse(raw)
+      if (!parsed || typeof parsed !== 'object') {
+        return null
+      }
+      return {
+        mantra: typeof parsed.mantra === 'string' ? parsed.mantra : '',
+        ritual: typeof parsed.ritual === 'string' ? parsed.ritual : '',
+        savedAt: parsed.savedAt || null
+      }
+    } catch {
+      return null
+    }
+  }, [])
+
+  const shouldRemovePromise = useCallback((value) => {
+    if (!value) return true
+    const mantra = typeof value.mantra === 'string' ? value.mantra.trim() : ''
+    const ritual = typeof value.ritual === 'string' ? value.ritual.trim() : ''
+    return !mantra && !ritual
+  }, [])
+
+  const writeSharedPromise = useCallback((storageKey, value) => {
+    if (!isBrowserEnv) return
+    window.localStorage.setItem(storageKey, JSON.stringify(value))
+  }, [])
+
+  const [sharedPromise, setSharedPromise] = useSessionStorageState(session, 'shared_promise', {
+    defaultValue: null,
+    readValue: readSharedPromise,
+    writeValue: writeSharedPromise,
+    shouldRemove: shouldRemovePromise
+  })
+
+  const activeStorageKey = session?.storageKey || null
 
   useEffect(() => {
     if (typeof window === 'undefined') return
@@ -188,144 +311,12 @@ function App() {
   }, [])
 
   useEffect(() => {
-    if (!session) {
-      setDestinationsData(cloneDestinationsList(destinations))
-      setPinnedAchievements([])
-      setConnectionProgress({})
-      setSharedPromise(null)
-      setShowPromiseModal(false)
-      setShowMapInsights(false)
-      return
-    }
-
-    if (typeof window === 'undefined') return
-
-    let nextData = cloneDestinationsList(destinations)
-    try {
-      const stored = localStorage.getItem(`${session.storageKey}_destinations_state`)
-      if (stored) {
-        const parsed = JSON.parse(stored)
-        if (Array.isArray(parsed) && parsed.length) {
-          nextData = cloneDestinationsList(parsed)
-        }
-      } else {
-        const legacy = localStorage.getItem('custom_destinations')
-        if (legacy) {
-          try {
-            const legacyParsed = JSON.parse(legacy)
-            if (Array.isArray(legacyParsed) && legacyParsed.length) {
-              nextData = cloneDestinationsList([...destinations, ...legacyParsed])
-            }
-          } catch {}
-        }
-      }
-    } catch (error) {
-      console.warn('加载目的地数据失败', error)
-      nextData = cloneDestinationsList(destinations)
-    }
-
-    setDestinationsData(nextData)
-
-    try {
-      const savedPinsRaw = localStorage.getItem(`${session.storageKey}_pinned_achievements`)
-      if (savedPinsRaw) {
-        const parsedPins = JSON.parse(savedPinsRaw)
-        if (Array.isArray(parsedPins)) {
-          setPinnedAchievements(parsedPins)
-        } else {
-          setPinnedAchievements([])
-        }
-      } else {
-        setPinnedAchievements([])
-      }
-    } catch {
-      setPinnedAchievements([])
-    }
-
-    try {
-      const savedConnectionRaw = localStorage.getItem(`${session.storageKey}_connection_prompts`)
-      if (savedConnectionRaw) {
-        const parsed = JSON.parse(savedConnectionRaw)
-        if (parsed && typeof parsed === 'object') {
-          setConnectionProgress(parsed)
-        } else {
-          setConnectionProgress({})
-        }
-      } else {
-        setConnectionProgress({})
-      }
-    } catch {
-      setConnectionProgress({})
-    }
-
-    try {
-      const savedPromiseRaw = localStorage.getItem(`${session.storageKey}_shared_promise`)
-      if (savedPromiseRaw) {
-        const parsedPromise = JSON.parse(savedPromiseRaw)
-        if (parsedPromise && typeof parsedPromise === 'object') {
-          setSharedPromise({
-            mantra: parsedPromise.mantra || '',
-            ritual: parsedPromise.ritual || '',
-            savedAt: parsedPromise.savedAt || null
-          })
-        } else {
-          setSharedPromise(null)
-        }
-      } else {
-        setSharedPromise(null)
-      }
-    } catch {
-      setSharedPromise(null)
-    }
+    setSelectedDestination(null)
+    setShowModal(false)
+    setShowAddModal(false)
+    setShowPromiseModal(false)
+    setShowMapInsights(false)
   }, [session])
-
-  useEffect(() => {
-    if (!session || !activeStorageKey) return
-    if (typeof window === 'undefined') return
-
-    try {
-      localStorage.setItem(`${activeStorageKey}_destinations_state`, JSON.stringify(destinationsData))
-    } catch (error) {
-      console.warn('保存目的地数据失败', error)
-    }
-  }, [activeStorageKey, destinationsData, session])
-
-  useEffect(() => {
-    if (!session || !activeStorageKey) return
-    if (typeof window === 'undefined') return
-
-    try {
-      localStorage.setItem(`${activeStorageKey}_pinned_achievements`, JSON.stringify(pinnedAchievements))
-    } catch (error) {
-      console.warn('保存奖章收藏失败', error)
-    }
-  }, [activeStorageKey, pinnedAchievements, session])
-
-  useEffect(() => {
-    if (!session || !activeStorageKey) return
-    if (typeof window === 'undefined') return
-
-    try {
-      localStorage.setItem(`${activeStorageKey}_connection_prompts`, JSON.stringify(connectionProgress))
-    } catch (error) {
-      console.warn('保存心动互动状态失败', error)
-    }
-  }, [activeStorageKey, connectionProgress, session])
-
-  useEffect(() => {
-    if (!session || !activeStorageKey) return
-    if (typeof window === 'undefined') return
-
-    try {
-      if (!sharedPromise || (!sharedPromise.mantra && !sharedPromise.ritual)) {
-        localStorage.removeItem(`${activeStorageKey}_shared_promise`)
-      } else {
-        localStorage.setItem(`${activeStorageKey}_shared_promise`, JSON.stringify(sharedPromise))
-      }
-    } catch (error) {
-      console.warn('保存旅程约定失败', error)
-    }
-  }, [activeStorageKey, session, sharedPromise])
 
   useEffect(() => {
     setSelectedDestination(null)
@@ -575,6 +566,7 @@ function App() {
     }
     setSession(null)
     setPinnedAchievements([])
+    setConnectionProgress({})
     setSelectedDestination(null)
     setShowModal(false)
     setShowAddModal(false)

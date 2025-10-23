@@ -16,7 +16,6 @@ const MusicPlayer = () => {
   const audioRef = useRef(null)
   const [isPlaying, setIsPlaying] = useState(false)
   const [hasUserInteracted, setHasUserInteracted] = useState(false)
-  const [isMobile, setIsMobile] = useState(false)
 
   const togglePlayPause = () => {
     const audio = audioRef.current
