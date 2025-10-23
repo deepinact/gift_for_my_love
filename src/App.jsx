@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react'
 import { MapContainer, TileLayer, Marker, Popup, Polyline, useMap } from 'react-leaflet'
 import { Icon } from 'leaflet'
+import 'leaflet/dist/leaflet.css'
 import { destinations, categories } from './data/destinations'
 import Sidebar from './components/Sidebar'
 import AddDestinationModal from './components/AddDestinationModal'
@@ -139,7 +140,7 @@ function App() {
   const [showPromiseModal, setShowPromiseModal] = useState(false)
   const [showMapInsights, setShowMapInsights] = useState(false)
 
-  const defaultDestinationsFactory = useCallback(() => cloneDestinationsList(destinations), [destinations])
+  const defaultDestinationsFactory = useCallback(() => cloneDestinationsList(destinations), [])
   const emptyArrayFactory = useCallback(() => [], [])
   const emptyObjectFactory = useCallback(() => ({}), [])
 
@@ -266,47 +267,60 @@ function App() {
   const activeStorageKey = session?.storageKey || null
 
   useEffect(() => {
-    if (typeof window === 'undefined') return
+    if (!isBrowserEnv) {
+      setIsAuthReady(true)
+      return undefined
+    }
 
-    try {
-      const accountsRaw = localStorage.getItem(ACCOUNTS_KEY)
-      let accounts = []
-      if (accountsRaw) {
-        try {
-          const parsed = JSON.parse(accountsRaw)
-          if (Array.isArray(parsed)) {
-            accounts = parsed
-          }
-        } catch {}
-      }
+    let isMounted = true
 
-      const activeRaw = localStorage.getItem(ACTIVE_SESSION_KEY)
-      if (activeRaw) {
-        try {
-          const active = JSON.parse(activeRaw)
-          if (active?.accountId) {
-            const account = accounts.find((item) => item.id === active.accountId)
-            if (account) {
-              const members = Array.isArray(account.members) ? account.members : []
-              const activeMember = members.find((member) => member.normalized === active.activeMember) || members[0]
-              const partnerMember = members.find((member) => member.normalized !== activeMember?.normalized) || members[1] || members[0]
-              if (activeMember) {
-                setSession({
-                  accountId: account.id,
-                  myUsername: activeMember.displayName,
-                  partnerUsername: partnerMember?.displayName || activeMember.displayName,
-                  members: members.length ? members.map((member) => member.displayName) : undefined,
-                  storageKey: account.storageKey
-                })
+    const restoreSession = () => {
+      try {
+        const accountsRaw = localStorage.getItem(ACCOUNTS_KEY)
+        let accounts = []
+        if (accountsRaw) {
+          try {
+            const parsed = JSON.parse(accountsRaw)
+            if (Array.isArray(parsed)) {
+              accounts = parsed
+            }
+          } catch {}
+        }
+
+        const activeRaw = localStorage.getItem(ACTIVE_SESSION_KEY)
+        if (activeRaw) {
+          try {
+            const active = JSON.parse(activeRaw)
+            if (active?.accountId) {
+              const account = accounts.find((item) => item.id === active.accountId)
+              if (account) {
+                const members = Array.isArray(account.members) ? account.members : []
+                const activeMember = members.find((member) => member.normalized === active.activeMember) || members[0]
+                const partnerMember = members.find((member) => member.normalized !== activeMember?.normalized) || members[1] || members[0]
+
+                if (activeMember && isMounted) {
+                  setSession({
+                    accountId: account.id,
+                    myUsername: activeMember.displayName,
+                    partnerUsername: partnerMember?.displayName || activeMember.displayName,
+                    members: members.length ? members.map((member) => member.displayName) : undefined,
+                    storageKey: account.storageKey
+                  })
+                }
               }
             }
-          }
-        } catch {}
+          } catch {}
+        }
+      } catch (error) {
+        console.warn('读取账号信息失败', error)
       }
-    } catch (error) {
-      console.warn('读取账号信息失败', error)
-    } finally {
-      setIsAuthReady(true)
+    }
+
+    restoreSession()
+    setIsAuthReady(true)
+
+    return () => {
+      isMounted = false
     }
   }, [])
 
@@ -316,12 +330,6 @@ function App() {
     setShowAddModal(false)
     setShowPromiseModal(false)
     setShowMapInsights(false)
-  }, [session])
-
-  useEffect(() => {
-    setSelectedDestination(null)
-    setShowModal(false)
-    setShowAddModal(false)
   }, [session])
 
   useEffect(() => {
