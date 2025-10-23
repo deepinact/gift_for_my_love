@@ -124,6 +124,23 @@ const MusicPlayer = () => {
     }
   }, [hasUserInteracted])
 
+  useEffect(() => {
+    const updateIsMobile = () => {
+      if (typeof window !== 'undefined') {
+        setIsMobile(window.matchMedia('(max-width: 768px)').matches)
+      }
+    }
+
+    updateIsMobile()
+
+    if (typeof window !== 'undefined') {
+      window.addEventListener('resize', updateIsMobile)
+      return () => window.removeEventListener('resize', updateIsMobile)
+    }
+
+    return undefined
+  }, [])
+
   return (
     <div className="music-player" data-playing={isPlaying ? 'true' : 'false'}>
       <audio
