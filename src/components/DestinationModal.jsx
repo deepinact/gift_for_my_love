@@ -1,8 +1,8 @@
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useMemo } from 'react'
 import { X, Plus, Edit2, Trash2, Calendar, MapPin, Users, DollarSign } from 'lucide-react'
 import './DestinationModal.css'
 
-const DestinationModal = ({ destination, onClose, onUpdate }) => {
+const DestinationModal = ({ destination, onClose, onUpdate, storageKey }) => {
   const [plans, setPlans] = useState(destination.plans || [])
   const [showAddForm, setShowAddForm] = useState(false)
   const [editingPlan, setEditingPlan] = useState(null)
@@ -19,17 +19,35 @@ const DestinationModal = ({ destination, onClose, onUpdate }) => {
     notes: ''
   })
 
+  const planStorageKey = useMemo(() => {
+    const baseKey = `plans_${destination.id}`
+    if (storageKey) {
+      return `${storageKey}_plans_${destination.id}`
+    }
+    return baseKey
+  }, [destination.id, storageKey])
+
   // 从本地存储加载计划
   useEffect(() => {
-    const savedPlans = localStorage.getItem(`plans_${destination.id}`)
-    if (savedPlans) {
-      setPlans(JSON.parse(savedPlans))
-    }
-  }, [destination.id])
+    if (typeof window === 'undefined') return
+
+    try {
+      const savedPlans = localStorage.getItem(planStorageKey)
+      if (savedPlans) {
+        setPlans(JSON.parse(savedPlans))
+        return
+      }
+    } catch {}
+
+    setPlans(destination.plans || [])
+  }, [destination.id, destination.plans, planStorageKey])
 
   // 保存计划到本地存储
   const savePlansToStorage = (newPlans) => {
-    localStorage.setItem(`plans_${destination.id}`, JSON.stringify(newPlans))
+    if (typeof window === 'undefined') return
+    try {
+      localStorage.setItem(planStorageKey, JSON.stringify(newPlans))
+    } catch {}
   }
 
   // 添加新计划
@@ -186,6 +204,13 @@ const DestinationModal = ({ destination, onClose, onUpdate }) => {
               <p><strong>最佳时间:</strong> {destination.bestTime}</p>
               <p><strong>描述:</strong> {destination.description}</p>
               {destination.notes && <p><strong>备注:</strong> {destination.notes}</p>}
+              {(destination.createdBy || destination.sharedWith) && (
+                <p className="destination-meta">
+                  <strong>共享旅伴:</strong>{' '}
+                  {destination.createdBy || '旅伴'}
+                  {destination.sharedWith ? ` ↔ ${destination.sharedWith}` : ''}
+                </p>
+              )}
             </div>
           </div>
 
