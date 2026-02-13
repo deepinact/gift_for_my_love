@@ -670,54 +670,6 @@ function App() {
     })
   }, [])
 
-  const handleSavePromise = useCallback(({ mantra, ritual }) => {
-    const nextMantra = (mantra || '').trim()
-    const nextRitual = (ritual || '').trim()
-
-    if (!nextMantra && !nextRitual) {
-      setSharedPromise(null)
-      setShowPromiseModal(false)
-      return
-    }
-
-    setSharedPromise({
-      mantra: nextMantra,
-      ritual: nextRitual,
-      savedAt: new Date().toISOString()
-    })
-    setShowPromiseModal(false)
-  }, [])
-
-  const handleRemovePromise = useCallback(() => {
-    setSharedPromise(null)
-    setShowPromiseModal(false)
-  }, [])
-
-  const toggleAchievementPin = useCallback((achievementId) => {
-    setPinnedAchievements((prev) => {
-      if (prev.includes(achievementId)) {
-        return prev.filter((id) => id !== achievementId)
-      }
-      const next = [...prev, achievementId]
-      if (next.length > 6) {
-        next.shift()
-      }
-      return next
-    })
-  }, [])
-
-  const toggleConnectionPrompt = useCallback((promptId) => {
-    setConnectionProgress((prev) => {
-      const next = { ...prev }
-      if (next[promptId]) {
-        delete next[promptId]
-      } else {
-        next[promptId] = true
-      }
-      return next
-    })
-  }, [])
-
   // 使用useMemo优化统计数据
   const stats = useMemo(() => {
     const visitedCount = destinationsData.filter(dest => dest.visited).length
