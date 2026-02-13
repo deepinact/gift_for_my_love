@@ -118,6 +118,10 @@ const visitedIcon = new Icon({
 })
 
 function App() {
+  const [session, setSession] = useState(null)
+  const [isAuthReady, setIsAuthReady] = useState(false)
+  const [authLoading, setAuthLoading] = useState(false)
+  const [authGlobalError, setAuthGlobalError] = useState('')
   const [selectedDestination, setSelectedDestination] = useState(null)
   const [showModal, setShowModal] = useState(false)
   const [selectedCategory, setSelectedCategory] = useState('全部')
@@ -388,6 +392,8 @@ function App() {
 
   // 新增目的地
   const handleAddDestination = useCallback((payload) => {
+    if (!session) return
+
     const nextId = Math.max(...destinationsData.map(d => d.id), 0) + 1
     const newDestination = {
       id: nextId,
@@ -401,7 +407,234 @@ function App() {
     setShowAddModal(false)
     setSelectedDestination(newDestination)
     setShowModal(true)
-  }, [destinationsData])
+  }, [destinationsData, session])
+
+  const handleAuthenticate = useCallback(async ({ mode, myUsername, partnerUsername, password }) => {
+    if (typeof window === 'undefined') {
+      return { success: false, message: '当前环境暂不支持登录。' }
+    }
+
+    if (authLoading) {
+      return { success: false }
+    }
+
+    const trimmedMy = (myUsername || '').trim()
+    const trimmedPartner = (partnerUsername || '').trim()
+    const trimmedPassword = (password || '').trim()
+
+    if (!trimmedMy || !trimmedPartner || !trimmedPassword) {
+      return { success: false, message: '请填写旅伴的名字与共享密码。' }
+    }
+
+    if (trimmedMy.toLowerCase() === trimmedPartner.toLowerCase()) {
+      return { success: false, message: '请输入两位不同旅伴的名字。' }
+    }
+
+    if (mode === 'register' && trimmedPassword.length < 6) {
+      return { success: false, message: '密码至少需要 6 位字符。' }
+    }
+
+    setAuthLoading(true)
+    setAuthGlobalError('')
+
+    try {
+      let accounts = []
+      try {
+        const raw = localStorage.getItem(ACCOUNTS_KEY)
+        if (raw) {
+          const parsed = JSON.parse(raw)
+          if (Array.isArray(parsed)) {
+            accounts = parsed
+          }
+        }
+      } catch {}
+
+      const normalizedMy = normalizeName(trimmedMy)
+      const normalizedPartner = normalizeName(trimmedPartner)
+      const pairKey = [normalizedMy, normalizedPartner].sort().join('__')
+
+      let account = accounts.find((item) => item.storageKey === pairKey)
+
+      if (mode === 'register') {
+        if (account) {
+          return { success: false, message: '这个组合已经创建过共享账号啦，可以直接登录。' }
+        }
+
+        account = {
+          id: `acc_${Date.now()}`,
+          storageKey: pairKey,
+          members: [
+            { displayName: trimmedMy, normalized: normalizedMy },
+            { displayName: trimmedPartner, normalized: normalizedPartner }
+          ],
+          password: trimmedPassword,
+          createdAt: new Date().toISOString()
+        }
+        accounts = [...accounts, account]
+        localStorage.setItem(ACCOUNTS_KEY, JSON.stringify(accounts))
+      } else {
+        if (!account) {
+          return { success: false, message: '未找到对应的双人账号，请确认彼此的昵称。' }
+        }
+
+        if (account.password !== trimmedPassword) {
+          return { success: false, message: '密码不正确，请再试一次。' }
+        }
+      }
+
+      const members = Array.isArray(account.members) ? account.members : []
+      const selfMember = members.find((member) => member.normalized === normalizedMy) || {
+        displayName: trimmedMy,
+        normalized: normalizedMy
+      }
+      const partnerMember = members.find((member) => member.normalized === normalizedPartner) || {
+        displayName: trimmedPartner,
+        normalized: normalizedPartner
+      }
+
+      if (!members.length) {
+        account.members = [selfMember, partnerMember]
+        const nextAccounts = accounts.map((item) => (item.id === account.id ? account : item))
+        localStorage.setItem(ACCOUNTS_KEY, JSON.stringify(nextAccounts))
+      }
+
+      localStorage.setItem(
+        ACTIVE_SESSION_KEY,
+        JSON.stringify({ accountId: account.id, activeMember: selfMember.normalized })
+      )
+
+      setSession({
+        accountId: account.id,
+        myUsername: selfMember.displayName,
+        partnerUsername: partnerMember.displayName,
+        members: (account.members || [selfMember, partnerMember]).map((member) => member.displayName),
+        storageKey: account.storageKey
+      })
+      setAuthGlobalError('')
+
+      return { success: true }
+    } catch (error) {
+      console.warn('账号操作失败', error)
+      const message = '暂时无法处理请求，请稍后再试。'
+      setAuthGlobalError(message)
+      return { success: false, message }
+    } finally {
+      setAuthLoading(false)
+    }
+  }, [authLoading])
+
+  const handleLogout = useCallback(() => {
+    if (typeof window !== 'undefined') {
+      try {
+        localStorage.removeItem(ACTIVE_SESSION_KEY)
+      } catch {}
+    }
+    setSession(null)
+    setPinnedAchievements([])
+    setConnectionProgress({})
+    setSelectedDestination(null)
+    setShowModal(false)
+    setShowAddModal(false)
+    setSharedPromise(null)
+    setShowPromiseModal(false)
+    setAuthGlobalError('')
+  }, [])
+
+  const handleSavePromise = useCallback(({ mantra, ritual }) => {
+    const nextMantra = (mantra || '').trim()
+    const nextRitual = (ritual || '').trim()
+
+    if (!nextMantra && !nextRitual) {
+      setSharedPromise(null)
+      setShowPromiseModal(false)
+      return
+    }
+
+    setSharedPromise({
+      mantra: nextMantra,
+      ritual: nextRitual,
+      savedAt: new Date().toISOString()
+    })
+    setShowPromiseModal(false)
+  }, [])
+
+  const handleRemovePromise = useCallback(() => {
+    setSharedPromise(null)
+    setShowPromiseModal(false)
+  }, [])
+
+  const toggleAchievementPin = useCallback((achievementId) => {
+    setPinnedAchievements((prev) => {
+      if (prev.includes(achievementId)) {
+        return prev.filter((id) => id !== achievementId)
+      }
+      const next = [...prev, achievementId]
+      if (next.length > 6) {
+        next.shift()
+      }
+      return next
+    })
+  }, [])
+
+  const toggleConnectionPrompt = useCallback((promptId) => {
+    setConnectionProgress((prev) => {
+      const next = { ...prev }
+      if (next[promptId]) {
+        delete next[promptId]
+      } else {
+        next[promptId] = true
+      }
+      return next
+    })
+  }, [])
+
+  const handleSavePromise = useCallback(({ mantra, ritual }) => {
+    const nextMantra = (mantra || '').trim()
+    const nextRitual = (ritual || '').trim()
+
+    if (!nextMantra && !nextRitual) {
+      setSharedPromise(null)
+      setShowPromiseModal(false)
+      return
+    }
+
+    setSharedPromise({
+      mantra: nextMantra,
+      ritual: nextRitual,
+      savedAt: new Date().toISOString()
+    })
+    setShowPromiseModal(false)
+  }, [])
+
+  const handleRemovePromise = useCallback(() => {
+    setSharedPromise(null)
+    setShowPromiseModal(false)
+  }, [])
+
+  const toggleAchievementPin = useCallback((achievementId) => {
+    setPinnedAchievements((prev) => {
+      if (prev.includes(achievementId)) {
+        return prev.filter((id) => id !== achievementId)
+      }
+      const next = [...prev, achievementId]
+      if (next.length > 6) {
+        next.shift()
+      }
+      return next
+    })
+  }, [])
+
+  const toggleConnectionPrompt = useCallback((promptId) => {
+    setConnectionProgress((prev) => {
+      const next = { ...prev }
+      if (next[promptId]) {
+        delete next[promptId]
+      } else {
+        next[promptId] = true
+      }
+      return next
+    })
+  }, [])
 
   const saveSharedPromise = useCallback(({ mantra, ritual }) => {
     const nextMantra = (mantra || '').trim()
