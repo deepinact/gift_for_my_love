@@ -18,7 +18,9 @@ import {
   Award,
   BookOpen,
   XCircle,
+  LogOut,
   Star,
+  Users,
   HeartHandshake,
   Feather
 } from 'lucide-react'
@@ -45,6 +47,7 @@ const Sidebar = ({
   dailyMood,
   onDestinationClick,
   onAddDestination,
+  session,
   pinnedAchievements = [],
   onToggleAchievementPin,
   connectionPrompts = [],
@@ -52,6 +55,7 @@ const Sidebar = ({
   onToggleConnectionPrompt,
   sharedPromise = null,
   onEditPromise,
+  onLogout
 }) => {
   const [currentPage, setCurrentPage] = useState(1)
   const [isCollapsed, setIsCollapsed] = useState(typeof window !== 'undefined' ? window.innerWidth < 768 : false)
@@ -455,17 +459,27 @@ const Sidebar = ({
           <p>记录我们的旅行足迹</p>
         </div>
 
-        <div className="account-section">
-          <div className="account-info">
-            <span className="account-label">双人专属空间</span>
-            <div className="account-names">
-              <h2>
-                <span>我们的小宇宙</span>
-              </h2>
+        {session && (
+          <div className="account-section">
+            <div className="account-info">
+              <span className="account-label">双人旅伴</span>
+              <div className="account-names">
+                <Users size={18} />
+                <h2>
+                  <span>{session.myUsername}</span>
+                  <span className="ampersand">&</span>
+                  <span>{session.partnerUsername}</span>
+                </h2>
+              </div>
+              <p>共享灵感、计划与回忆，随时同步。</p>
             </div>
-            <p>所有记录都共享，同步保存每一次心动旅程。</p>
+            {onLogout && (
+              <button type="button" className="account-logout" onClick={onLogout}>
+                <LogOut size={16} /> 安全退出
+              </button>
+            )}
           </div>
-        </div>
+        )}
 
         <div className="search-section">
           <div className="search-box">

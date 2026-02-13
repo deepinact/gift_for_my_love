@@ -7,6 +7,7 @@ import Sidebar from './components/Sidebar'
 import AddDestinationModal from './components/AddDestinationModal'
 import DestinationModal from './components/DestinationModal'
 import MusicPlayer from './components/MusicPlayer'
+import CoupleAuthOverlay from './components/CoupleAuthOverlay'
 import CouplePromiseModal from './components/CouplePromiseModal'
 import './App.css'
 
@@ -57,7 +58,13 @@ const isGoodSeasonNow = (bestTime, month) => {
   return ranges.some((range) => isMonthInRange(month, range))
 }
 
-const SHARED_STORAGE_PREFIX = 'our_shared_journey'
+const ACCOUNTS_KEY = 'couple_accounts_v1'
+const ACTIVE_SESSION_KEY = 'couple_active_session_v1'
+
+const normalizeName = (value) => {
+  if (typeof value !== 'string') return ''
+  return value.trim().toLowerCase()
+}
 
 const clonePlans = (plans) => {
   if (!Array.isArray(plans)) return []
@@ -118,6 +125,10 @@ const visitedIcon = new Icon({
 })
 
 function App() {
+  const [session, setSession] = useState(null)
+  const [isAuthReady, setIsAuthReady] = useState(false)
+  const [authLoading, setAuthLoading] = useState(false)
+  const [authGlobalError, setAuthGlobalError] = useState('')
   const [selectedDestination, setSelectedDestination] = useState(null)
   const [showModal, setShowModal] = useState(false)
   const [selectedCategory, setSelectedCategory] = useState('全部')
@@ -132,14 +143,21 @@ function App() {
   const [pinnedAchievements, setPinnedAchievements] = useState([])
   const [connectionProgress, setConnectionProgress] = useState({})
   const [sharedPromise, setSharedPromise] = useState(null)
-  const activeStorageKey = SHARED_STORAGE_PREFIX
 
   useEffect(() => {
-    if (!isBrowserEnv) return
+    if (!session || !isBrowserEnv) {
+      setDestinationsData(cloneDestinationsList(destinations))
+      setPinnedAchievements([])
+      setConnectionProgress({})
+      setSharedPromise(null)
+      return
+    }
+
+    const storagePrefix = session.storageKey
 
     let nextDestinations = cloneDestinationsList(destinations)
     try {
-      const stored = window.localStorage.getItem(`${activeStorageKey}_destinations_state`)
+      const stored = window.localStorage.getItem(`${storagePrefix}_destinations_state`)
       if (stored) {
         const parsed = JSON.parse(stored)
         if (Array.isArray(parsed) && parsed.length) {
@@ -169,7 +187,7 @@ function App() {
 
     let nextPinned = []
     try {
-      const rawPins = window.localStorage.getItem(`${activeStorageKey}_pinned_achievements`)
+      const rawPins = window.localStorage.getItem(`${storagePrefix}_pinned_achievements`)
       if (rawPins) {
         const parsedPins = JSON.parse(rawPins)
         if (Array.isArray(parsedPins)) {
@@ -183,7 +201,7 @@ function App() {
 
     let nextProgress = {}
     try {
-      const rawProgress = window.localStorage.getItem(`${activeStorageKey}_connection_prompts`)
+      const rawProgress = window.localStorage.getItem(`${storagePrefix}_connection_prompts`)
       if (rawProgress) {
         const parsedProgress = JSON.parse(rawProgress)
         if (parsedProgress && typeof parsedProgress === 'object') {
@@ -197,7 +215,7 @@ function App() {
 
     let nextPromise = null
     try {
-      const rawPromise = window.localStorage.getItem(`${activeStorageKey}_shared_promise`)
+      const rawPromise = window.localStorage.getItem(`${storagePrefix}_shared_promise`)
       if (rawPromise) {
         const parsedPromise = JSON.parse(rawPromise)
         if (parsedPromise && typeof parsedPromise === 'object') {
@@ -216,47 +234,47 @@ function App() {
       console.warn('加载旅程约定失败', error)
     }
     setSharedPromise(nextPromise)
-  }, [activeStorageKey])
+  }, [destinations, session])
 
   useEffect(() => {
-    if (!isBrowserEnv) return
+    if (!session || !isBrowserEnv) return
     try {
       window.localStorage.setItem(
-        `${activeStorageKey}_destinations_state`,
+        `${session.storageKey}_destinations_state`,
         JSON.stringify(destinationsData)
       )
     } catch (error) {
       console.warn('保存目的地数据失败', error)
     }
-  }, [activeStorageKey, destinationsData])
+  }, [destinationsData, session])
 
   useEffect(() => {
-    if (!isBrowserEnv) return
+    if (!session || !isBrowserEnv) return
     try {
       window.localStorage.setItem(
-        `${activeStorageKey}_pinned_achievements`,
+        `${session.storageKey}_pinned_achievements`,
         JSON.stringify(Array.isArray(pinnedAchievements) ? pinnedAchievements : [])
       )
     } catch (error) {
       console.warn('保存成就收藏失败', error)
     }
-  }, [activeStorageKey, pinnedAchievements])
+  }, [pinnedAchievements, session])
 
   useEffect(() => {
-    if (!isBrowserEnv) return
+    if (!session || !isBrowserEnv) return
     try {
       window.localStorage.setItem(
-        `${activeStorageKey}_connection_prompts`,
+        `${session.storageKey}_connection_prompts`,
         JSON.stringify(connectionProgress || {})
       )
     } catch (error) {
       console.warn('保存心动互动进度失败', error)
     }
-  }, [activeStorageKey, connectionProgress])
+  }, [connectionProgress, session])
 
   useEffect(() => {
-    if (!isBrowserEnv) return
-    const storageKey = `${activeStorageKey}_shared_promise`
+    if (!session || !isBrowserEnv) return
+    const storageKey = `${session.storageKey}_shared_promise`
     const mantra = typeof sharedPromise?.mantra === 'string' ? sharedPromise.mantra.trim() : ''
     const ritual = typeof sharedPromise?.ritual === 'string' ? sharedPromise.ritual.trim() : ''
 
@@ -275,7 +293,75 @@ function App() {
     } catch (error) {
       console.warn('保存旅程约定失败', error)
     }
-  }, [activeStorageKey, sharedPromise])
+  }, [session, sharedPromise])
+
+  const activeStorageKey = session?.storageKey || null
+
+  useEffect(() => {
+    if (!isBrowserEnv) {
+      setIsAuthReady(true)
+      return undefined
+    }
+
+    let isMounted = true
+
+    const restoreSession = () => {
+      try {
+        const accountsRaw = localStorage.getItem(ACCOUNTS_KEY)
+        let accounts = []
+        if (accountsRaw) {
+          try {
+            const parsed = JSON.parse(accountsRaw)
+            if (Array.isArray(parsed)) {
+              accounts = parsed
+            }
+          } catch {}
+        }
+
+        const activeRaw = localStorage.getItem(ACTIVE_SESSION_KEY)
+        if (activeRaw) {
+          try {
+            const active = JSON.parse(activeRaw)
+            if (active?.accountId) {
+              const account = accounts.find((item) => item.id === active.accountId)
+              if (account) {
+                const members = Array.isArray(account.members) ? account.members : []
+                const activeMember = members.find((member) => member.normalized === active.activeMember) || members[0]
+                const partnerMember = members.find((member) => member.normalized !== activeMember?.normalized) || members[1] || members[0]
+
+                if (activeMember && isMounted) {
+                  setSession({
+                    accountId: account.id,
+                    myUsername: activeMember.displayName,
+                    partnerUsername: partnerMember?.displayName || activeMember.displayName,
+                    members: members.length ? members.map((member) => member.displayName) : undefined,
+                    storageKey: account.storageKey
+                  })
+                }
+              }
+            }
+          } catch {}
+        }
+      } catch (error) {
+        console.warn('读取账号信息失败', error)
+      }
+    }
+
+    restoreSession()
+    setIsAuthReady(true)
+
+    return () => {
+      isMounted = false
+    }
+  }, [])
+
+  useEffect(() => {
+    setSelectedDestination(null)
+    setShowModal(false)
+    setShowAddModal(false)
+    setShowPromiseModal(false)
+    setShowMapInsights(false)
+  }, [session])
 
   useEffect(() => {
     if (!showMapInsights) return undefined
@@ -388,12 +474,14 @@ function App() {
 
   // 新增目的地
   const handleAddDestination = useCallback((payload) => {
+    if (!session) return
+
     const nextId = Math.max(...destinationsData.map(d => d.id), 0) + 1
     const newDestination = {
       id: nextId,
       createdAt: new Date().toISOString(),
-      createdBy: '我们',
-      sharedWith: '双人空间',
+      createdBy: session.myUsername,
+      sharedWith: session.partnerUsername,
       ...payload,
       plans: clonePlans(payload.plans)
     }
@@ -401,7 +489,186 @@ function App() {
     setShowAddModal(false)
     setSelectedDestination(newDestination)
     setShowModal(true)
-  }, [destinationsData])
+  }, [destinationsData, session])
+
+  const handleAuthenticate = useCallback(async ({ mode, myUsername, partnerUsername, password }) => {
+    if (typeof window === 'undefined') {
+      return { success: false, message: '当前环境暂不支持登录。' }
+    }
+
+    if (authLoading) {
+      return { success: false }
+    }
+
+    const trimmedMy = (myUsername || '').trim()
+    const trimmedPartner = (partnerUsername || '').trim()
+    const trimmedPassword = (password || '').trim()
+
+    if (!trimmedMy || !trimmedPartner || !trimmedPassword) {
+      return { success: false, message: '请填写旅伴的名字与共享密码。' }
+    }
+
+    if (trimmedMy.toLowerCase() === trimmedPartner.toLowerCase()) {
+      return { success: false, message: '请输入两位不同旅伴的名字。' }
+    }
+
+    if (mode === 'register' && trimmedPassword.length < 6) {
+      return { success: false, message: '密码至少需要 6 位字符。' }
+    }
+
+    setAuthLoading(true)
+    setAuthGlobalError('')
+
+    try {
+      let accounts = []
+      try {
+        const raw = localStorage.getItem(ACCOUNTS_KEY)
+        if (raw) {
+          const parsed = JSON.parse(raw)
+          if (Array.isArray(parsed)) {
+            accounts = parsed
+          }
+        }
+      } catch {}
+
+      const normalizedMy = normalizeName(trimmedMy)
+      const normalizedPartner = normalizeName(trimmedPartner)
+      const pairKey = [normalizedMy, normalizedPartner].sort().join('__')
+
+      let account = accounts.find((item) => item.storageKey === pairKey)
+
+      if (mode === 'register') {
+        if (account) {
+          return { success: false, message: '这个组合已经创建过共享账号啦，可以直接登录。' }
+        }
+
+        account = {
+          id: `acc_${Date.now()}`,
+          storageKey: pairKey,
+          members: [
+            { displayName: trimmedMy, normalized: normalizedMy },
+            { displayName: trimmedPartner, normalized: normalizedPartner }
+          ],
+          password: trimmedPassword,
+          createdAt: new Date().toISOString()
+        }
+        accounts = [...accounts, account]
+        localStorage.setItem(ACCOUNTS_KEY, JSON.stringify(accounts))
+      } else {
+        if (!account) {
+          return { success: false, message: '未找到对应的双人账号，请确认彼此的昵称。' }
+        }
+
+        if (account.password !== trimmedPassword) {
+          return { success: false, message: '密码不正确，请再试一次。' }
+        }
+      }
+
+      const members = Array.isArray(account.members) ? account.members : []
+      const selfMember = members.find((member) => member.normalized === normalizedMy) || {
+        displayName: trimmedMy,
+        normalized: normalizedMy
+      }
+      const partnerMember = members.find((member) => member.normalized === normalizedPartner) || {
+        displayName: trimmedPartner,
+        normalized: normalizedPartner
+      }
+
+      if (!members.length) {
+        account.members = [selfMember, partnerMember]
+        const nextAccounts = accounts.map((item) => (item.id === account.id ? account : item))
+        localStorage.setItem(ACCOUNTS_KEY, JSON.stringify(nextAccounts))
+      }
+
+      localStorage.setItem(
+        ACTIVE_SESSION_KEY,
+        JSON.stringify({ accountId: account.id, activeMember: selfMember.normalized })
+      )
+
+      setSession({
+        accountId: account.id,
+        myUsername: selfMember.displayName,
+        partnerUsername: partnerMember.displayName,
+        members: (account.members || [selfMember, partnerMember]).map((member) => member.displayName),
+        storageKey: account.storageKey
+      })
+      setAuthGlobalError('')
+
+      return { success: true }
+    } catch (error) {
+      console.warn('账号操作失败', error)
+      const message = '暂时无法处理请求，请稍后再试。'
+      setAuthGlobalError(message)
+      return { success: false, message }
+    } finally {
+      setAuthLoading(false)
+    }
+  }, [authLoading])
+
+  const handleLogout = useCallback(() => {
+    if (typeof window !== 'undefined') {
+      try {
+        localStorage.removeItem(ACTIVE_SESSION_KEY)
+      } catch {}
+    }
+    setSession(null)
+    setPinnedAchievements([])
+    setConnectionProgress({})
+    setSelectedDestination(null)
+    setShowModal(false)
+    setShowAddModal(false)
+    setSharedPromise(null)
+    setShowPromiseModal(false)
+    setAuthGlobalError('')
+  }, [])
+
+  const handleSavePromise = useCallback(({ mantra, ritual }) => {
+    const nextMantra = (mantra || '').trim()
+    const nextRitual = (ritual || '').trim()
+
+    if (!nextMantra && !nextRitual) {
+      setSharedPromise(null)
+      setShowPromiseModal(false)
+      return
+    }
+
+    setSharedPromise({
+      mantra: nextMantra,
+      ritual: nextRitual,
+      savedAt: new Date().toISOString()
+    })
+    setShowPromiseModal(false)
+  }, [])
+
+  const handleRemovePromise = useCallback(() => {
+    setSharedPromise(null)
+    setShowPromiseModal(false)
+  }, [])
+
+  const toggleAchievementPin = useCallback((achievementId) => {
+    setPinnedAchievements((prev) => {
+      if (prev.includes(achievementId)) {
+        return prev.filter((id) => id !== achievementId)
+      }
+      const next = [...prev, achievementId]
+      if (next.length > 6) {
+        next.shift()
+      }
+      return next
+    })
+  }, [])
+
+  const toggleConnectionPrompt = useCallback((promptId) => {
+    setConnectionProgress((prev) => {
+      const next = { ...prev }
+      if (next[promptId]) {
+        delete next[promptId]
+      } else {
+        next[promptId] = true
+      }
+      return next
+    })
+  }, [])
 
   const handleSavePromise = useCallback(({ mantra, ritual }) => {
     const nextMantra = (mantra || '').trim()
@@ -560,8 +827,8 @@ function App() {
       {
         id: 'duo-signed-in',
         title: '心意同步',
-        description: '默认开启双人共享空间，旅程即刻同步。',
-        current: 1,
+        description: '双人账号成功登录，开启共享旅程空间。',
+        current: session ? 1 : 0,
         target: 1,
         reward: '解锁共享旅行日志与同步计划。'
       },
@@ -649,9 +916,10 @@ function App() {
         pinned: pinnedAchievements.includes(achievement.id)
       }
     })
-  }, [customDestinationsCount, engagedCategoryCount, pinnedAchievements, sharedPlanNotesCount, stats, totalPlansCount])
+  }, [customDestinationsCount, engagedCategoryCount, pinnedAchievements, session, sharedPlanNotesCount, stats, totalPlansCount])
 
   useEffect(() => {
+    if (!session) return
     setPinnedAchievements((prev) => {
       const valid = prev.filter((id) => travelAchievements.some((achievement) => achievement.id === id))
       if (valid.length === prev.length) {
@@ -659,10 +927,12 @@ function App() {
       }
       return valid
     })
-  }, [travelAchievements])
+  }, [session, travelAchievements])
 
   const baseConnectionPrompts = useMemo(() => {
-    const partnerName = 'TA'
+    if (!session) return []
+
+    const partnerName = session.partnerUsername || '旅伴'
     const highlight = seasonalHighlights[0]
     const wish = wishlistSpotlights[0]
     const memory = memoryLane[0]
@@ -725,9 +995,10 @@ function App() {
     ]
 
     return prompts.filter((prompt) => !prompt.disabled)
-  }, [memoryLane, upcomingPlans, seasonalHighlights, stats.visitedCount, wishlistSpotlights])
+  }, [memoryLane, upcomingPlans, seasonalHighlights, session, stats.visitedCount, wishlistSpotlights])
 
   useEffect(() => {
+    if (!session) return
     setConnectionProgress((prev) => {
       const validIds = new Set(baseConnectionPrompts.map((prompt) => prompt.id))
       const filtered = Object.keys(prev).reduce((acc, key) => {
@@ -741,7 +1012,7 @@ function App() {
       }
       return filtered
     })
-  }, [baseConnectionPrompts])
+  }, [baseConnectionPrompts, session])
 
   const connectionPrompts = useMemo(() => {
     return baseConnectionPrompts.map((prompt) => ({
@@ -778,6 +1049,29 @@ function App() {
   const heroHighlight = seasonalHighlights[0] || wishlistSpotlights[0] || null
   const bondNudge = connectionPrompts.find((prompt) => !prompt.completed) || connectionPrompts[0] || null
 
+  if (!isAuthReady) {
+    return (
+      <div className="app auth-only">
+        <div className="auth-loading-state" role="status" aria-live="polite">
+          <span className="auth-loading-spinner" />
+          <p>正在唤醒旅程，请稍候...</p>
+        </div>
+      </div>
+    )
+  }
+
+  if (!session) {
+    return (
+      <div className="app auth-only">
+        <CoupleAuthOverlay
+          onAuthenticate={handleAuthenticate}
+          isLoading={authLoading}
+          errorMessage={authGlobalError}
+        />
+      </div>
+    )
+  }
+
   return (
     <div className="app">
       <Sidebar
@@ -801,6 +1095,7 @@ function App() {
         dailyMood={dailyMood}
         onDestinationClick={handleSidebarDestinationClick}
         onAddDestination={() => setShowAddModal(true)}
+        session={session}
         pinnedAchievements={pinnedAchievements}
         onToggleAchievementPin={toggleAchievementPin}
         connectionPrompts={connectionPrompts}
@@ -808,6 +1103,7 @@ function App() {
         onToggleConnectionPrompt={toggleConnectionPrompt}
         sharedPromise={sharedPromise}
         onEditPromise={() => setShowPromiseModal(true)}
+        onLogout={handleLogout}
       />
 
       <div className="map-container">
