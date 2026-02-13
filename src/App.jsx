@@ -7,7 +7,6 @@ import Sidebar from './components/Sidebar'
 import AddDestinationModal from './components/AddDestinationModal'
 import DestinationModal from './components/DestinationModal'
 import MusicPlayer from './components/MusicPlayer'
-import CoupleAuthOverlay from './components/CoupleAuthOverlay'
 import CouplePromiseModal from './components/CouplePromiseModal'
 import './App.css'
 
@@ -58,13 +57,7 @@ const isGoodSeasonNow = (bestTime, month) => {
   return ranges.some((range) => isMonthInRange(month, range))
 }
 
-const ACCOUNTS_KEY = 'couple_accounts_v1'
-const ACTIVE_SESSION_KEY = 'couple_active_session_v1'
-
-const normalizeName = (value) => {
-  if (typeof value !== 'string') return ''
-  return value.trim().toLowerCase()
-}
+const SHARED_STORAGE_PREFIX = 'our_shared_journey'
 
 const clonePlans = (plans) => {
   if (!Array.isArray(plans)) return []
@@ -143,21 +136,14 @@ function App() {
   const [pinnedAchievements, setPinnedAchievements] = useState([])
   const [connectionProgress, setConnectionProgress] = useState({})
   const [sharedPromise, setSharedPromise] = useState(null)
+  const activeStorageKey = SHARED_STORAGE_PREFIX
 
   useEffect(() => {
-    if (!session || !isBrowserEnv) {
-      setDestinationsData(cloneDestinationsList(destinations))
-      setPinnedAchievements([])
-      setConnectionProgress({})
-      setSharedPromise(null)
-      return
-    }
-
-    const storagePrefix = session.storageKey
+    if (!isBrowserEnv) return
 
     let nextDestinations = cloneDestinationsList(destinations)
     try {
-      const stored = window.localStorage.getItem(`${storagePrefix}_destinations_state`)
+      const stored = window.localStorage.getItem(`${activeStorageKey}_destinations_state`)
       if (stored) {
         const parsed = JSON.parse(stored)
         if (Array.isArray(parsed) && parsed.length) {
@@ -187,7 +173,7 @@ function App() {
 
     let nextPinned = []
     try {
-      const rawPins = window.localStorage.getItem(`${storagePrefix}_pinned_achievements`)
+      const rawPins = window.localStorage.getItem(`${activeStorageKey}_pinned_achievements`)
       if (rawPins) {
         const parsedPins = JSON.parse(rawPins)
         if (Array.isArray(parsedPins)) {
@@ -201,7 +187,7 @@ function App() {
 
     let nextProgress = {}
     try {
-      const rawProgress = window.localStorage.getItem(`${storagePrefix}_connection_prompts`)
+      const rawProgress = window.localStorage.getItem(`${activeStorageKey}_connection_prompts`)
       if (rawProgress) {
         const parsedProgress = JSON.parse(rawProgress)
         if (parsedProgress && typeof parsedProgress === 'object') {
@@ -215,7 +201,7 @@ function App() {
 
     let nextPromise = null
     try {
-      const rawPromise = window.localStorage.getItem(`${storagePrefix}_shared_promise`)
+      const rawPromise = window.localStorage.getItem(`${activeStorageKey}_shared_promise`)
       if (rawPromise) {
         const parsedPromise = JSON.parse(rawPromise)
         if (parsedPromise && typeof parsedPromise === 'object') {
@@ -234,47 +220,47 @@ function App() {
       console.warn('加载旅程约定失败', error)
     }
     setSharedPromise(nextPromise)
-  }, [destinations, session])
+  }, [activeStorageKey])
 
   useEffect(() => {
-    if (!session || !isBrowserEnv) return
+    if (!isBrowserEnv) return
     try {
       window.localStorage.setItem(
-        `${session.storageKey}_destinations_state`,
+        `${activeStorageKey}_destinations_state`,
         JSON.stringify(destinationsData)
       )
     } catch (error) {
       console.warn('保存目的地数据失败', error)
     }
-  }, [destinationsData, session])
+  }, [activeStorageKey, destinationsData])
 
   useEffect(() => {
-    if (!session || !isBrowserEnv) return
+    if (!isBrowserEnv) return
     try {
       window.localStorage.setItem(
-        `${session.storageKey}_pinned_achievements`,
+        `${activeStorageKey}_pinned_achievements`,
         JSON.stringify(Array.isArray(pinnedAchievements) ? pinnedAchievements : [])
       )
     } catch (error) {
       console.warn('保存成就收藏失败', error)
     }
-  }, [pinnedAchievements, session])
+  }, [activeStorageKey, pinnedAchievements])
 
   useEffect(() => {
-    if (!session || !isBrowserEnv) return
+    if (!isBrowserEnv) return
     try {
       window.localStorage.setItem(
-        `${session.storageKey}_connection_prompts`,
+        `${activeStorageKey}_connection_prompts`,
         JSON.stringify(connectionProgress || {})
       )
     } catch (error) {
       console.warn('保存心动互动进度失败', error)
     }
-  }, [connectionProgress, session])
+  }, [activeStorageKey, connectionProgress])
 
   useEffect(() => {
-    if (!session || !isBrowserEnv) return
-    const storageKey = `${session.storageKey}_shared_promise`
+    if (!isBrowserEnv) return
+    const storageKey = `${activeStorageKey}_shared_promise`
     const mantra = typeof sharedPromise?.mantra === 'string' ? sharedPromise.mantra.trim() : ''
     const ritual = typeof sharedPromise?.ritual === 'string' ? sharedPromise.ritual.trim() : ''
 
@@ -293,75 +279,7 @@ function App() {
     } catch (error) {
       console.warn('保存旅程约定失败', error)
     }
-  }, [session, sharedPromise])
-
-  const activeStorageKey = session?.storageKey || null
-
-  useEffect(() => {
-    if (!isBrowserEnv) {
-      setIsAuthReady(true)
-      return undefined
-    }
-
-    let isMounted = true
-
-    const restoreSession = () => {
-      try {
-        const accountsRaw = localStorage.getItem(ACCOUNTS_KEY)
-        let accounts = []
-        if (accountsRaw) {
-          try {
-            const parsed = JSON.parse(accountsRaw)
-            if (Array.isArray(parsed)) {
-              accounts = parsed
-            }
-          } catch {}
-        }
-
-        const activeRaw = localStorage.getItem(ACTIVE_SESSION_KEY)
-        if (activeRaw) {
-          try {
-            const active = JSON.parse(activeRaw)
-            if (active?.accountId) {
-              const account = accounts.find((item) => item.id === active.accountId)
-              if (account) {
-                const members = Array.isArray(account.members) ? account.members : []
-                const activeMember = members.find((member) => member.normalized === active.activeMember) || members[0]
-                const partnerMember = members.find((member) => member.normalized !== activeMember?.normalized) || members[1] || members[0]
-
-                if (activeMember && isMounted) {
-                  setSession({
-                    accountId: account.id,
-                    myUsername: activeMember.displayName,
-                    partnerUsername: partnerMember?.displayName || activeMember.displayName,
-                    members: members.length ? members.map((member) => member.displayName) : undefined,
-                    storageKey: account.storageKey
-                  })
-                }
-              }
-            }
-          } catch {}
-        }
-      } catch (error) {
-        console.warn('读取账号信息失败', error)
-      }
-    }
-
-    restoreSession()
-    setIsAuthReady(true)
-
-    return () => {
-      isMounted = false
-    }
-  }, [])
-
-  useEffect(() => {
-    setSelectedDestination(null)
-    setShowModal(false)
-    setShowAddModal(false)
-    setShowPromiseModal(false)
-    setShowMapInsights(false)
-  }, [session])
+  }, [activeStorageKey, sharedPromise])
 
   useEffect(() => {
     if (!showMapInsights) return undefined
@@ -480,8 +398,8 @@ function App() {
     const newDestination = {
       id: nextId,
       createdAt: new Date().toISOString(),
-      createdBy: session.myUsername,
-      sharedWith: session.partnerUsername,
+      createdBy: '我们',
+      sharedWith: '双人空间',
       ...payload,
       plans: clonePlans(payload.plans)
     }
@@ -670,6 +588,54 @@ function App() {
     })
   }, [])
 
+  const handleSavePromise = useCallback(({ mantra, ritual }) => {
+    const nextMantra = (mantra || '').trim()
+    const nextRitual = (ritual || '').trim()
+
+    if (!nextMantra && !nextRitual) {
+      setSharedPromise(null)
+      setShowPromiseModal(false)
+      return
+    }
+
+    setSharedPromise({
+      mantra: nextMantra,
+      ritual: nextRitual,
+      savedAt: new Date().toISOString()
+    })
+    setShowPromiseModal(false)
+  }, [])
+
+  const handleRemovePromise = useCallback(() => {
+    setSharedPromise(null)
+    setShowPromiseModal(false)
+  }, [])
+
+  const toggleAchievementPin = useCallback((achievementId) => {
+    setPinnedAchievements((prev) => {
+      if (prev.includes(achievementId)) {
+        return prev.filter((id) => id !== achievementId)
+      }
+      const next = [...prev, achievementId]
+      if (next.length > 6) {
+        next.shift()
+      }
+      return next
+    })
+  }, [])
+
+  const toggleConnectionPrompt = useCallback((promptId) => {
+    setConnectionProgress((prev) => {
+      const next = { ...prev }
+      if (next[promptId]) {
+        delete next[promptId]
+      } else {
+        next[promptId] = true
+      }
+      return next
+    })
+  }, [])
+
   // 使用useMemo优化统计数据
   const stats = useMemo(() => {
     const visitedCount = destinationsData.filter(dest => dest.visited).length
@@ -779,8 +745,8 @@ function App() {
       {
         id: 'duo-signed-in',
         title: '心意同步',
-        description: '双人账号成功登录，开启共享旅程空间。',
-        current: session ? 1 : 0,
+        description: '默认开启双人共享空间，旅程即刻同步。',
+        current: 1,
         target: 1,
         reward: '解锁共享旅行日志与同步计划。'
       },
@@ -868,10 +834,9 @@ function App() {
         pinned: pinnedAchievements.includes(achievement.id)
       }
     })
-  }, [customDestinationsCount, engagedCategoryCount, pinnedAchievements, session, sharedPlanNotesCount, stats, totalPlansCount])
+  }, [customDestinationsCount, engagedCategoryCount, pinnedAchievements, sharedPlanNotesCount, stats, totalPlansCount])
 
   useEffect(() => {
-    if (!session) return
     setPinnedAchievements((prev) => {
       const valid = prev.filter((id) => travelAchievements.some((achievement) => achievement.id === id))
       if (valid.length === prev.length) {
@@ -879,12 +844,10 @@ function App() {
       }
       return valid
     })
-  }, [session, travelAchievements])
+  }, [travelAchievements])
 
   const baseConnectionPrompts = useMemo(() => {
-    if (!session) return []
-
-    const partnerName = session.partnerUsername || '旅伴'
+    const partnerName = 'TA'
     const highlight = seasonalHighlights[0]
     const wish = wishlistSpotlights[0]
     const memory = memoryLane[0]
@@ -947,10 +910,9 @@ function App() {
     ]
 
     return prompts.filter((prompt) => !prompt.disabled)
-  }, [memoryLane, upcomingPlans, seasonalHighlights, session, stats.visitedCount, wishlistSpotlights])
+  }, [memoryLane, upcomingPlans, seasonalHighlights, stats.visitedCount, wishlistSpotlights])
 
   useEffect(() => {
-    if (!session) return
     setConnectionProgress((prev) => {
       const validIds = new Set(baseConnectionPrompts.map((prompt) => prompt.id))
       const filtered = Object.keys(prev).reduce((acc, key) => {
@@ -964,7 +926,7 @@ function App() {
       }
       return filtered
     })
-  }, [baseConnectionPrompts, session])
+  }, [baseConnectionPrompts])
 
   const connectionPrompts = useMemo(() => {
     return baseConnectionPrompts.map((prompt) => ({
@@ -1001,29 +963,6 @@ function App() {
   const heroHighlight = seasonalHighlights[0] || wishlistSpotlights[0] || null
   const bondNudge = connectionPrompts.find((prompt) => !prompt.completed) || connectionPrompts[0] || null
 
-  if (!isAuthReady) {
-    return (
-      <div className="app auth-only">
-        <div className="auth-loading-state" role="status" aria-live="polite">
-          <span className="auth-loading-spinner" />
-          <p>正在唤醒旅程，请稍候...</p>
-        </div>
-      </div>
-    )
-  }
-
-  if (!session) {
-    return (
-      <div className="app auth-only">
-        <CoupleAuthOverlay
-          onAuthenticate={handleAuthenticate}
-          isLoading={authLoading}
-          errorMessage={authGlobalError}
-        />
-      </div>
-    )
-  }
-
   return (
     <div className="app">
       <Sidebar
@@ -1047,7 +986,6 @@ function App() {
         dailyMood={dailyMood}
         onDestinationClick={handleSidebarDestinationClick}
         onAddDestination={() => setShowAddModal(true)}
-        session={session}
         pinnedAchievements={pinnedAchievements}
         onToggleAchievementPin={toggleAchievementPin}
         connectionPrompts={connectionPrompts}
@@ -1055,7 +993,6 @@ function App() {
         onToggleConnectionPrompt={toggleConnectionPrompt}
         sharedPromise={sharedPromise}
         onEditPromise={() => setShowPromiseModal(true)}
-        onLogout={handleLogout}
       />
 
       <div className="map-container">
